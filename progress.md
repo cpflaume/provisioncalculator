@@ -63,5 +63,5 @@
 - [X] Integration: APPROVED settlement blocks all writes (409)
 - [X] Integration: multi-tenant isolation — tenant A cannot read tenant B data
 - [X] Integration: idempotency — POST calculate twice → same `calculationId`, no duplicate rows
-- [ ] Migration test: all Flyway scripts apply clean on fresh schema (Testcontainers)
-- [ ] Performance test: 5000-node tree + 10k purchases completes in < 5s
+- [ ] Migration test: all Flyway scripts apply clean on fresh schema (Testcontainers) — requires Docker
+- [ ] Performance test: 5000-node tree + 10k purchases completes in < 5s — requires Docker
