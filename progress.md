@@ -54,10 +54,10 @@
 - [X] `GlobalExceptionHandler` — map service exceptions to HTTP status codes
 
 ## 8. Tests
-- [ ] Unit: `DepthBasedCommissionRule` — depth 1/2/3, rounding, buyer at root, multiple purchases
-- [ ] Unit: `CommissionRuleEngine` — rule ordering, `isApplicable` filtering, result concatenation
-- [ ] Unit: `TreeService` — valid tree, cycle detection, multiple roots rejected
-- [ ] Unit: `CalculationService` — idempotency (same hash → cached), new hash → fresh run
+- [X] Unit: `DepthBasedCommissionRule` — depth 1/2/3, rounding, buyer at root, multiple purchases
+- [X] Unit: `CommissionRuleEngine` — rule ordering, `isApplicable` filtering, result concatenation
+- [X] Unit: `TreeService` — valid tree, cycle detection, multiple roots rejected
+- [X] Unit: `CalculationService` — idempotency (same hash → cached), new hash → fresh run
 - [ ] Integration: settlement lifecycle (create → config → purchases → calculate → approve)
 - [ ] Integration: reject → auto-reset to OPEN → recalculate → approve
 - [ ] Integration: APPROVED settlement blocks all writes (409)
