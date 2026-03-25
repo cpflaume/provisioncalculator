@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.provisions.calculator.service.TreeServiceTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-03-25T21:09:06.579Z" hostname="(none)" time="0.006">
+  <properties/>
+  <testcase name="empty tree is rejected()" classname="com.provisions.calculator.service.TreeServiceTest" time="0.001"/>
+  <testcase name="valid tree passes validation()" classname="com.provisions.calculator.service.TreeServiceTest" time="0.001"/>
+  <testcase name="duplicate customer IDs are rejected()" classname="com.provisions.calculator.service.TreeServiceTest" time="0.001"/>
+  <testcase name="multiple roots are rejected()" classname="com.provisions.calculator.service.TreeServiceTest" time="0.001"/>
+  <testcase name="missing parent reference is rejected()" classname="com.provisions.calculator.service.TreeServiceTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

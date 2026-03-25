@@ -58,10 +58,10 @@
 - [X] Unit: `CommissionRuleEngine` — rule ordering, `isApplicable` filtering, result concatenation
 - [X] Unit: `TreeService` — valid tree, cycle detection, multiple roots rejected
 - [X] Unit: `CalculationService` — idempotency (same hash → cached), new hash → fresh run
-- [ ] Integration: settlement lifecycle (create → config → purchases → calculate → approve)
-- [ ] Integration: reject → auto-reset to OPEN → recalculate → approve
-- [ ] Integration: APPROVED settlement blocks all writes (409)
-- [ ] Integration: multi-tenant isolation — tenant A cannot read tenant B data
-- [ ] Integration: idempotency — POST calculate twice → same `calculationId`, no duplicate rows
+- [X] Integration: settlement lifecycle (create → config → purchases → calculate → approve)
+- [X] Integration: reject → auto-reset to OPEN → recalculate → approve
+- [X] Integration: APPROVED settlement blocks all writes (409)
+- [X] Integration: multi-tenant isolation — tenant A cannot read tenant B data
+- [X] Integration: idempotency — POST calculate twice → same `calculationId`, no duplicate rows
 - [ ] Migration test: all Flyway scripts apply clean on fresh schema (Testcontainers)
 - [ ] Performance test: 5000-node tree + 10k purchases completes in < 5s

@@ -24,7 +24,7 @@ class CommissionResult(
     @Column(name = "recipient_customer_id", nullable = false)
     val recipientCustomerId: String,
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "source_purchase_id")
     val sourcePurchase: Purchase? = null,
 

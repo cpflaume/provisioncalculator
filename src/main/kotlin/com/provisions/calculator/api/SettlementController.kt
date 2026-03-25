@@ -67,7 +67,7 @@ class SettlementController(private val settlementService: SettlementService) {
         return GetConfigResponse(
             settlementId = config.settlement.id,
             rates = config.rates.map { RateResponse(it.depth, it.ratePercent) },
-            tree = config.nodes.map { TreeNodeResponse(it.customerId, it.parentNode?.customerId) },
+            tree = config.nodes.map { TreeNodeResponse(it.customerId, config.parentCustomerIdMap[it.customerId]) },
             nodeCount = config.nodes.size,
             updatedAt = LocalDateTime.now()
         )

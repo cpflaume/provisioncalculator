@@ -100,15 +100,23 @@ class SettlementService(
         return settlement
     }
 
+    @Transactional(readOnly = true)
     fun getConfig(tenantId: String, settlementId: Long): ConfigData {
         val settlement = findById(tenantId, settlementId)
         val settings = commissionSettingsRepository.findByTenantIdAndSettlementId(tenantId, settlementId)
         val nodes = treeNodeRepository.findByTenantIdAndSettlementId(tenantId, settlementId)
+        // Force initialization of lazy collections within transaction
+        val rates = settings?.rates?.toList() ?: emptyList()
+        // Build parentCustomerId map from loaded nodes
+        val nodeById = nodes.associateBy { it.id }
 
         return ConfigData(
             settlement = settlement,
-            rates = settings?.rates ?: emptyList(),
-            nodes = nodes
+            rates = rates,
+            nodes = nodes,
+            parentCustomerIdMap = nodes.associate { node ->
+                node.customerId to node.parentNode?.let { nodeById[it.id]?.customerId }
+            }
         )
     }
 
@@ -141,6 +149,7 @@ class SettlementService(
     data class ConfigData(
         val settlement: Settlement,
         val rates: List<CommissionRate>,
-        val nodes: List<TreeNode>
+        val nodes: List<TreeNode>,
+        val parentCustomerIdMap: Map<String, String?> = emptyMap()
     )
 }

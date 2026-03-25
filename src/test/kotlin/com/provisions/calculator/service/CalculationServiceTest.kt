@@ -50,6 +50,7 @@ class CalculationServiceTest {
         every { commissionSettingsRepository.findByTenantIdAndSettlementId("t1", 1L) } returns settings
         every { purchaseRepository.findByTenantIdAndSettlementId("t1", 1L) } returns listOf(purchase)
         every { calculationRepository.findByTenantIdAndSettlementIdAndInputHash("t1", 1L, any()) } returns existingCalc
+        every { settlementRepository.save(any<Settlement>()) } answers { firstArg() }
         every { commissionResultRepository.findByCalculationId(existingCalc.id) } returns listOf(existingResult)
 
         val result = service.calculate("t1", 1L)

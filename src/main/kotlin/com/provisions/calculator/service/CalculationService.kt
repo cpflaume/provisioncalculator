@@ -46,6 +46,11 @@ class CalculationService(
         // Idempotency check
         val existing = calculationRepository.findByTenantIdAndSettlementIdAndInputHash(tenantId, settlementId, inputHash)
         if (existing != null) {
+            // Ensure settlement status is CALCULATED even on cache hit
+            if (settlement.status != SettlementStatus.CALCULATED) {
+                settlement.status = SettlementStatus.CALCULATED
+                settlementRepository.save(settlement)
+            }
             val results = commissionResultRepository.findByCalculationId(existing.id)
             return CalculationResult(
                 calculation = existing,
@@ -106,6 +111,7 @@ class CalculationService(
         )
     }
 
+    @Transactional(readOnly = true)
     fun getResults(tenantId: String, settlementId: Long): CalculationResult {
         settlementService.findById(tenantId, settlementId)
         val calculation = calculationRepository.findFirstByTenantIdAndSettlementIdOrderByCalculatedAtDesc(tenantId, settlementId)
@@ -114,6 +120,7 @@ class CalculationService(
         return CalculationResult(calculation = calculation, results = results, fromCache = true)
     }
 
+    @Transactional(readOnly = true)
     fun getResultForRecipient(tenantId: String, settlementId: Long, recipientCustomerId: String): List<CommissionResult> {
         settlementService.findById(tenantId, settlementId)
         val calculation = calculationRepository.findFirstByTenantIdAndSettlementIdOrderByCalculatedAtDesc(tenantId, settlementId)
@@ -121,6 +128,7 @@ class CalculationService(
         return commissionResultRepository.findByCalculationIdAndRecipientCustomerId(calculation.id, recipientCustomerId)
     }
 
+    @Transactional(readOnly = true)
     fun getAuditTrail(tenantId: String, settlementId: Long): List<CommissionResult> {
         settlementService.findById(tenantId, settlementId)
         val calculation = calculationRepository.findFirstByTenantIdAndSettlementIdOrderByCalculatedAtDesc(tenantId, settlementId)
