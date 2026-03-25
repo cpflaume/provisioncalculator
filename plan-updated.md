@@ -20,7 +20,7 @@ src/main/kotlin/com/provisions/calculator/
 │   ├── Settlement.kt               # + SettlementStatus enum (OPEN/CALCULATED/APPROVED/REJECTED)
 │   ├── CommissionSettings.kt
 │   ├── CommissionRate.kt           # depth -> ratePercent
-│   ├── TreeNode.kt                 # adjacency list: externalId + parentId FK (nullable)
+│   ├── TreeNode.kt                 # adjacency list: customerId + parentId FK (nullable)
 │   ├── Purchase.kt
 │   ├── Calculation.kt              # one record per calculation run; holds inputHash
 │   └── CommissionResult.kt         # audit-trail row: one per (recipient, sourcePurchase, rule)
@@ -63,13 +63,13 @@ src/main/kotlin/com/provisions/calculator/
 
 | Table | Key columns |
 |---|---|
-| `settlement` | `id`, `tenant_id`, `name`, `start_date`, `end_date`, `status` (OPEN/CALCULATED/APPROVED/REJECTED) |
+| `settlement` | `id`, `tenant_id`, `name`, `status` (OPEN/CALCULATED/APPROVED/REJECTED), `created_at` |
 | `commission_settings` | `id`, `tenant_id`, `settlement_id` · UNIQUE(`tenant_id`, `settlement_id`) |
 | `commission_rate` | `id`, `tenant_id`, `settings_id`, `depth`, `rate_percent` · UNIQUE(`settings_id`, `depth`) |
-| `tree_node` | `id`, `tenant_id`, `settlement_id`, `external_id`, `parent_node_id` (nullable self-ref FK) · UNIQUE(`tenant_id`, `settlement_id`, `external_id`) |
-| `purchase` | `id`, `tenant_id`, `settlement_id`, `buyer_external_id`, `amount`, `purchased_at` |
+| `tree_node` | `id`, `tenant_id`, `settlement_id`, `customer_id`, `parent_node_id` (nullable self-ref FK) · UNIQUE(`tenant_id`, `settlement_id`, `customer_id`) |
+| `purchase` | `id`, `tenant_id`, `settlement_id`, `buyer_customer_id`, `amount`, `purchased_at` |
 | `calculation` | `id` (UUID PK), `tenant_id`, `settlement_id`, `input_hash`, `calculated_at` · UNIQUE(`tenant_id`, `settlement_id`, `input_hash`) |
-| `commission_result` | `id`, `tenant_id`, `settlement_id`, `calculation_id` (FK → calculation), `recipient_external_id`, `source_purchase_id` (nullable FK → purchase), `amount`, `depth` (nullable), `rule_id` |
+| `commission_result` | `id`, `tenant_id`, `settlement_id`, `calculation_id` (FK → calculation), `recipient_customer_id`, `source_purchase_id` (nullable FK → purchase), `amount`, `depth` (nullable), `rule_id` |
 
 All money/rate fields: `NUMERIC(15,4)` / `NUMERIC(8,4)`. Rounding: `BigDecimal` HALF_UP.
 
@@ -86,7 +86,7 @@ CREATE INDEX idx_tree_node_parent              ON tree_node (parent_node_id);
 CREATE INDEX idx_purchase_tenant_settlement    ON purchase  (tenant_id, settlement_id);
 CREATE INDEX idx_calculation_tenant_settlement ON calculation (tenant_id, settlement_id);
 CREATE INDEX idx_result_calculation            ON commission_result (calculation_id);
-CREATE INDEX idx_result_recipient              ON commission_result (calculation_id, recipient_external_id);
+CREATE INDEX idx_result_recipient              ON commission_result (calculation_id, recipient_customer_id);
 CREATE INDEX idx_result_source_purchase        ON commission_result (source_purchase_id);
 ```
 
@@ -113,20 +113,34 @@ All URLs are rooted under `/api/v1/tenants/{tenantId}`.
 
 ```
 POST   /api/v1/tenants/{tenantId}/settlements
-         Body: { name, startDate, endDate }
-         → 201  { id, tenantId, name, startDate, endDate, status, createdAt }
+         Body: { name }              // name is free text, e.g. "März 2026" or "Q1 Abrechnung"
+         → 201  { id, tenantId, name, status, createdAt }
 
 GET    /api/v1/tenants/{tenantId}/settlements/{settlementId}
 GET    /api/v1/tenants/{tenantId}/settlements?status=
 
 PUT    /api/v1/tenants/{tenantId}/settlements/{settlementId}/config
          Body: {
-           rates: [{ depth: 1, ratePercent: 1.0 }, { depth: 2, ratePercent: 3.0 }, ...],
-           tree:  [{ externalId: "A", parentExternalId: null }, { externalId: "B", parentExternalId: "A" }, ...]
+           rates: [
+             { depth: 1, ratePercent: 1.0 },   // ratePercent is a percentage: 1.0 = 1%, 3.5 = 3.5%
+             { depth: 2, ratePercent: 3.0 },
+             { depth: 3, ratePercent: 5.0 }
+           ],
+           tree: [
+             { customerId: "A", parentCustomerId: null },
+             { customerId: "B", parentCustomerId: "A" }
+           ]
          }
          → 200  { settlementId, rates, nodeCount, updatedAt }
 
 GET    /api/v1/tenants/{tenantId}/settlements/{settlementId}/config
+         → 200  {
+                  settlementId,
+                  rates: [{ depth, ratePercent }],
+                  tree:  [{ customerId, parentCustomerId }],
+                  nodeCount,
+                  updatedAt
+                }
 ```
 
 > PUT config replaces the entire tree atomically and resets status to OPEN if previously CALCULATED.
@@ -149,7 +163,7 @@ POST   /api/v1/tenants/{tenantId}/settlements/{settlementId}/reject
 
 ```
 POST   /api/v1/tenants/{tenantId}/settlements/{settlementId}/purchases
-         Body: { purchases: [{ buyerExternalId, amount, purchasedAt }] }
+         Body: { purchases: [{ buyerCustomerId, amount, purchasedAt }] }
          → 202  { settlementId, accepted, submittedAt }
 
 GET    /api/v1/tenants/{tenantId}/settlements/{settlementId}/purchases?page=&size=
@@ -160,11 +174,11 @@ GET    /api/v1/tenants/{tenantId}/settlements/{settlementId}/purchases?page=&siz
 ```
 POST   /api/v1/tenants/{tenantId}/settlements/{settlementId}/calculate
          Body: {}
-         → 200  { calculationId, settlementId, calculatedAt, cached,
-                  results: [{ recipientExternalId, totalCommission }] }
+         → 200  { calculationId, settlementId, calculatedAt, fromCache,
+                  results: [{ customerId, totalCommission }] }
 
 GET    /api/v1/tenants/{tenantId}/settlements/{settlementId}/calculation
-GET    /api/v1/tenants/{tenantId}/settlements/{settlementId}/calculation/recipients/{externalId}
+GET    /api/v1/tenants/{tenantId}/settlements/{settlementId}/calculation/recipients/{customerId}
 GET    /api/v1/tenants/{tenantId}/settlements/{settlementId}/calculation/audit
 ```
 
@@ -176,7 +190,7 @@ GET    /api/v1/tenants/{tenantId}/settlements/{settlementId}/calculation/audit
 
 ```kotlin
 data class CommissionLineItem(
-    val recipientExternalId: String,
+    val recipientCustomerId: String,
     val sourcePurchaseId: Long?,   // null for aggregate rules
     val amount: BigDecimal,
     val depth: Int?,               // null for non-depth rules
@@ -199,7 +213,7 @@ interface CommissionRule {
 
 ```kotlin
 // TreeNodeMemento lives here as a nested or same-file data class
-data class TreeNodeMemento(val externalId: String, val parentExternalId: String?, val children: List<String>)
+data class TreeNodeMemento(val customerId: String, val parentCustomerId: String?, val children: List<String>)
 
 data class CalculationContext(
     val tenantId: String,
@@ -232,8 +246,8 @@ Calculation is **fully idempotent**: the same inputs always produce the same res
 
 1. Compute `inputHash = SHA-256(tenantId + settlementId + sortedDepthRates + sortedPurchaseIds)`
 2. Query `calculation` table by `(tenant_id, settlement_id, input_hash)`
-3. **Found** → return stored results immediately, `cached: true`
-4. **Not found** → run engine, bulk-insert `CommissionResult` rows, insert `Calculation` row, `cached: false`
+3. **Found** → return stored results immediately, `fromCache: true`
+4. **Not found** → run engine, bulk-insert `CommissionResult` rows, insert `Calculation` row, `fromCache: false`
 
 ### Invariants
 
@@ -258,7 +272,7 @@ APPROVED ──(all writes → 409 Conflict)
 
 ```kotlin
 // SettlementService
-fun create(tenantId: String, request: CreateSettlementRequest): SettlementResponse
+fun create(tenantId: String, request: CreateSettlementRequest): SettlementResponse   // request: { name }
 fun findById(tenantId: String, settlementId: Long): SettlementResponse
 fun configure(tenantId: String, settlementId: Long, request: ConfigureSettingsRequest): SettlementResponse
 fun approve(tenantId: String, settlementId: Long): SettlementResponse   // CALCULATED → APPROVED
@@ -275,7 +289,7 @@ fun submitBatch(tenantId: String, settlementId: Long, request: SubmitPurchasesRe
 fun calculate(tenantId: String, settlementId: Long): CalculationResponse
 fun getResults(tenantId: String, settlementId: Long): CalculationResponse
 fun getAuditTrail(tenantId: String, settlementId: Long): List<CommissionResultResponse>
-fun getResultForRecipient(tenantId: String, settlementId: Long, recipientExternalId: String): CommissionResultResponse
+fun getResultForRecipient(tenantId: String, settlementId: Long, recipientCustomerId: String): CommissionResultResponse
 ```
 
 ---
