@@ -43,6 +43,22 @@ kotlin {
     }
 }
 
-tasks.withType<Test> {
-    useJUnitPlatform()
+tasks.named<Test>("test") {
+    useJUnitPlatform {
+        excludeTags("performance")
+    }
+}
+
+tasks.register<Test>("performanceTest") {
+    description = "Runs performance tests with large tree sizes"
+    group = "verification"
+    useJUnitPlatform {
+        includeTags("performance")
+    }
+    jvmArgs = listOf("-Xmx2g", "-Xms1g")
+    systemProperty("junit.jupiter.execution.timeout.default", "20m")
+    testLogging {
+        showStandardStreams = true
+        events("passed", "failed", "skipped")
+    }
 }
