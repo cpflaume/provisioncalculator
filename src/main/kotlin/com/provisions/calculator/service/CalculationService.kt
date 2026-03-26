@@ -1,11 +1,13 @@
 package com.provisions.calculator.service
 
 import com.provisions.calculator.engine.CalculationContext
+import com.provisions.calculator.engine.CommissionRule
 import com.provisions.calculator.engine.CommissionRuleEngine
 import com.provisions.calculator.model.Calculation
 import com.provisions.calculator.model.CommissionResult
 import com.provisions.calculator.model.SettlementStatus
 import com.provisions.calculator.repository.*
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -22,7 +24,8 @@ class CalculationService(
     private val calculationRepository: CalculationRepository,
     private val commissionResultRepository: CommissionResultRepository,
     private val settlementRepository: SettlementRepository,
-    private val ruleEngine: CommissionRuleEngine
+    private val ruleEngine: CommissionRuleEngine,
+    private val commissionRules: List<CommissionRule>
 ) {
 
     @Transactional
@@ -40,8 +43,12 @@ class CalculationService(
 
         val ratesByDepth = settings.rates.associate { it.depth to it.ratePercent }
 
-        // Compute input hash
-        val inputHash = computeInputHash(tenantId, settlementId, ratesByDepth, purchases.map { it.id }.sorted())
+        // Load tree for both hash computation and calculation
+        val treeMap = treeService.loadTreeIntoMemory(tenantId, settlementId)
+
+        // Compute input hash including tree structure and active rule IDs
+        val sortedRuleIds = commissionRules.sortedBy { it.ruleId }.map { it.ruleId }
+        val inputHash = computeInputHash(tenantId, settlementId, ratesByDepth, purchases.map { it.id }.sorted(), treeMap, sortedRuleIds)
 
         // Idempotency check
         val existing = calculationRepository.findByTenantIdAndSettlementIdAndInputHash(tenantId, settlementId, inputHash)
@@ -60,7 +67,6 @@ class CalculationService(
         }
 
         // Build context
-        val treeMap = treeService.loadTreeIntoMemory(tenantId, settlementId)
         val totalRevenue = purchases.fold(BigDecimal.ZERO) { acc, p -> acc.add(p.amount) }
 
         val context = CalculationContext(
@@ -76,13 +82,26 @@ class CalculationService(
         // Run engine
         val lineItems = ruleEngine.execute(context)
 
-        // Persist calculation
+        // Persist calculation — handle concurrent insert race condition
         val calculation = Calculation(
             tenantId = tenantId,
             settlement = settlement,
             inputHash = inputHash
         )
-        calculationRepository.save(calculation)
+        try {
+            calculationRepository.save(calculation)
+            calculationRepository.flush()
+        } catch (e: DataIntegrityViolationException) {
+            // Concurrent request already inserted — return its result
+            val concurrentCalc = calculationRepository.findByTenantIdAndSettlementIdAndInputHash(tenantId, settlementId, inputHash)
+                ?: throw e
+            if (settlement.status != SettlementStatus.CALCULATED) {
+                settlement.status = SettlementStatus.CALCULATED
+                settlementRepository.save(settlement)
+            }
+            val results = commissionResultRepository.findByCalculationId(concurrentCalc.id)
+            return CalculationResult(calculation = concurrentCalc, results = results, fromCache = true)
+        }
 
         // Persist results
         val purchaseMap = purchases.associateBy { it.id }
@@ -140,11 +159,15 @@ class CalculationService(
         tenantId: String,
         settlementId: Long,
         ratesByDepth: Map<Int, BigDecimal>,
-        sortedPurchaseIds: List<Long>
+        sortedPurchaseIds: List<Long>,
+        treeMap: Map<String, com.provisions.calculator.engine.TreeNodeMemento>,
+        sortedRuleIds: List<String>
     ): String {
         val sortedRates = ratesByDepth.entries.sortedBy { it.key }.joinToString(",") { "${it.key}:${it.value}" }
         val purchaseIds = sortedPurchaseIds.joinToString(",")
-        val input = "$tenantId|$settlementId|$sortedRates|$purchaseIds"
+        val treeData = treeMap.entries.sortedBy { it.key }.joinToString(",") { "${it.key}:${it.value.parentCustomerId ?: "ROOT"}" }
+        val rules = sortedRuleIds.joinToString(",")
+        val input = "$tenantId|$settlementId|$sortedRates|$purchaseIds|$treeData|$rules"
 
         val digest = MessageDigest.getInstance("SHA-256")
         val hashBytes = digest.digest(input.toByteArray())

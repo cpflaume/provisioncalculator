@@ -104,18 +104,17 @@ class SettlementService(
     fun getConfig(tenantId: String, settlementId: Long): ConfigData {
         val settlement = findById(tenantId, settlementId)
         val settings = commissionSettingsRepository.findByTenantIdAndSettlementId(tenantId, settlementId)
-        val nodes = treeNodeRepository.findByTenantIdAndSettlementId(tenantId, settlementId)
+        // Uses JOIN FETCH to avoid N+1 on parentNode
+        val nodes = treeNodeRepository.findWithParentByTenantIdAndSettlementId(tenantId, settlementId)
         // Force initialization of lazy collections within transaction
         val rates = settings?.rates?.toList() ?: emptyList()
-        // Build parentCustomerId map from loaded nodes
-        val nodeById = nodes.associateBy { it.id }
 
         return ConfigData(
             settlement = settlement,
             rates = rates,
             nodes = nodes,
             parentCustomerIdMap = nodes.associate { node ->
-                node.customerId to node.parentNode?.let { nodeById[it.id]?.customerId }
+                node.customerId to node.parentNode?.customerId
             }
         )
     }

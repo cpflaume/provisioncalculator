@@ -15,19 +15,7 @@ class CalculationController(private val calculationService: CalculationService) 
         @PathVariable tenantId: String,
         @PathVariable settlementId: Long
     ): CalculationResponse {
-        val result = calculationService.calculate(tenantId, settlementId)
-        val aggregated = result.results
-            .groupBy { it.recipientCustomerId }
-            .map { (customerId, items) ->
-                RecipientTotal(customerId, items.fold(BigDecimal.ZERO) { acc, r -> acc.add(r.amount) })
-            }
-        return CalculationResponse(
-            calculationId = result.calculation.id,
-            settlementId = result.calculation.settlement.id,
-            calculatedAt = result.calculation.calculatedAt,
-            fromCache = result.fromCache,
-            results = aggregated
-        )
+        return toResponse(calculationService.calculate(tenantId, settlementId))
     }
 
     @GetMapping("/calculation")
@@ -35,19 +23,7 @@ class CalculationController(private val calculationService: CalculationService) 
         @PathVariable tenantId: String,
         @PathVariable settlementId: Long
     ): CalculationResponse {
-        val result = calculationService.getResults(tenantId, settlementId)
-        val aggregated = result.results
-            .groupBy { it.recipientCustomerId }
-            .map { (customerId, items) ->
-                RecipientTotal(customerId, items.fold(BigDecimal.ZERO) { acc, r -> acc.add(r.amount) })
-            }
-        return CalculationResponse(
-            calculationId = result.calculation.id,
-            settlementId = result.calculation.settlement.id,
-            calculatedAt = result.calculation.calculatedAt,
-            fromCache = result.fromCache,
-            results = aggregated
-        )
+        return toResponse(calculationService.getResults(tenantId, settlementId))
     }
 
     @GetMapping("/calculation/recipients/{customerId}")
@@ -86,6 +62,21 @@ class CalculationController(private val calculationService: CalculationService) 
                 ruleId = it.ruleId
             )
         }
+    }
+
+    private fun toResponse(result: CalculationService.CalculationResult): CalculationResponse {
+        val aggregated = result.results
+            .groupBy { it.recipientCustomerId }
+            .map { (customerId, items) ->
+                RecipientTotal(customerId, items.fold(BigDecimal.ZERO) { acc, r -> acc.add(r.amount) })
+            }
+        return CalculationResponse(
+            calculationId = result.calculation.id,
+            settlementId = result.calculation.settlement.id,
+            calculatedAt = result.calculation.calculatedAt,
+            fromCache = result.fromCache,
+            results = aggregated
+        )
     }
 }
 

@@ -4,6 +4,7 @@ import com.provisions.calculator.api.request.SubmitPurchasesRequest
 import com.provisions.calculator.model.Purchase
 import com.provisions.calculator.model.SettlementStatus
 import com.provisions.calculator.repository.PurchaseRepository
+import com.provisions.calculator.repository.SettlementRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.http.HttpStatus
@@ -14,7 +15,8 @@ import org.springframework.web.server.ResponseStatusException
 @Service
 class PurchaseService(
     private val purchaseRepository: PurchaseRepository,
-    private val settlementService: SettlementService
+    private val settlementService: SettlementService,
+    private val settlementRepository: SettlementRepository
 ) {
 
     @Transactional
@@ -41,7 +43,7 @@ class PurchaseService(
         // Reset status to OPEN if was CALCULATED
         if (settlement.status == SettlementStatus.CALCULATED) {
             settlement.status = SettlementStatus.OPEN
-            // Settlement is managed entity, will be flushed at transaction commit
+            settlementRepository.save(settlement)
         }
 
         return saved
