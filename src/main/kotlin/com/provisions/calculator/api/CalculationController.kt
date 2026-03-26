@@ -1,6 +1,9 @@
 package com.provisions.calculator.api
 
 import com.provisions.calculator.service.CalculationService
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.web.bind.annotation.*
 import java.math.BigDecimal
 import java.time.LocalDateTime
@@ -8,29 +11,46 @@ import java.util.*
 
 @RestController
 @RequestMapping("/api/v1/tenants/{tenantId}/settlements/{settlementId}")
+@Tag(name = "Calculation")
 class CalculationController(private val calculationService: CalculationService) {
 
     @PostMapping("/calculate")
+    @Operation(
+        summary = "Calculate commissions",
+        description = """Triggers commission calculation for all purchases in this settlement.
+
+For each purchase, the engine walks up the referral tree from the buyer and applies the configured rate at each depth level.
+
+**Idempotent:** Calling this again with the same data returns the cached result (fromCache = true). The cache is invalidated when purchases, rates, tree structure, or rules change."""
+    )
     fun calculate(
-        @PathVariable tenantId: String,
+        @Parameter(description = "Tenant identifier", example = "acme") @PathVariable tenantId: String,
         @PathVariable settlementId: Long
     ): CalculationResponse {
         return toResponse(calculationService.calculate(tenantId, settlementId))
     }
 
     @GetMapping("/calculation")
+    @Operation(
+        summary = "Get aggregated results",
+        description = "Returns the commission totals per recipient from the most recent calculation."
+    )
     fun getResults(
-        @PathVariable tenantId: String,
+        @Parameter(description = "Tenant identifier", example = "acme") @PathVariable tenantId: String,
         @PathVariable settlementId: Long
     ): CalculationResponse {
         return toResponse(calculationService.getResults(tenantId, settlementId))
     }
 
     @GetMapping("/calculation/recipients/{customerId}")
+    @Operation(
+        summary = "Get results for a single recipient",
+        description = "Returns the detailed commission breakdown for one recipient — showing each source purchase, amount, depth, and rule that generated the commission."
+    )
     fun getResultForRecipient(
-        @PathVariable tenantId: String,
+        @Parameter(description = "Tenant identifier", example = "acme") @PathVariable tenantId: String,
         @PathVariable settlementId: Long,
-        @PathVariable customerId: String
+        @Parameter(description = "Customer ID of the commission recipient", example = "alice") @PathVariable customerId: String
     ): RecipientDetailResponse {
         val results = calculationService.getResultForRecipient(tenantId, settlementId, customerId)
         val total = results.fold(BigDecimal.ZERO) { acc, r -> acc.add(r.amount) }
@@ -49,8 +69,12 @@ class CalculationController(private val calculationService: CalculationService) 
     }
 
     @GetMapping("/calculation/audit")
+    @Operation(
+        summary = "Get full audit trail",
+        description = "Returns every individual commission line item — one entry per purchase-recipient-depth combination. Useful for reconciliation and compliance."
+    )
     fun getAuditTrail(
-        @PathVariable tenantId: String,
+        @Parameter(description = "Tenant identifier", example = "acme") @PathVariable tenantId: String,
         @PathVariable settlementId: Long
     ): List<AuditEntry> {
         return calculationService.getAuditTrail(tenantId, settlementId).map {
