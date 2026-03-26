@@ -1,6 +1,6 @@
-# Deployment Plan — AWS Free Tier
+# Deployment Plan — Oracle Cloud Always Free
 
-This document describes how to host the Provision Calculator service on AWS for test purposes, fully within the free tier, with automated deployment triggered by GitHub Releases.
+This document describes how to host the Provision Calculator service on Oracle Cloud for test purposes, **permanently free** (no expiration), with automated deployment triggered by GitHub Releases.
 
 ## Architecture Overview
 
@@ -10,63 +10,96 @@ GitHub Release (tag)
        ▼
 GitHub Actions Workflow
   ├── gradle build (produces JAR)
-  └── SCP JAR to EC2 → restart systemd service
+  └── SCP JAR to OCI VM → restart systemd service
                 │
                 ▼
-     ┌──────────────────────┐
-     │  EC2 t2.micro        │
-     │  Amazon Linux 2023   │
-     │                      │
-     │  ┌────────────────┐  │
-     │  │ Spring Boot    │  │
-     │  │ (port 8080)    │  │
-     │  └───────┬────────┘  │
-     │          │           │
-     │  ┌───────▼────────┐  │
-     │  │ PostgreSQL 15  │  │
-     │  │ (localhost)    │  │
-     │  └────────────────┘  │
-     └──────────────────────┘
+     ┌──────────────────────────┐
+     │  OCI VM.Standard.A1.Flex │
+     │  Oracle Linux 9 (ARM)   │
+     │  1 OCPU / 6 GB RAM      │
+     │                          │
+     │  ┌────────────────┐      │
+     │  │ Spring Boot    │      │
+     │  │ (port 8080)    │      │
+     │  └───────┬────────┘      │
+     │          │               │
+     │  ┌───────▼────────┐      │
+     │  │ PostgreSQL 15  │      │
+     │  │ (localhost)    │      │
+     │  └────────────────┘      │
+     └──────────────────────────┘
 ```
 
-**Why this setup:**
-- Single EC2 instance with PostgreSQL co-located — simplest possible setup, avoids RDS costs
-- t2.micro: 750 hours/month free for 12 months (enough for 24/7 operation)
-- No load balancer, no ECS, no managed DB — zero cost beyond the free tier
+**Why Oracle Cloud Always Free:**
+- **Permanently free** — no 12-month expiration, no surprise bills
+- ARM VM with 1 OCPU + 6 GB RAM — 6x more memory than AWS t2.micro
+- 50 GB boot volume included
 - GitHub Actions is free for public repos
 
-## AWS Free Tier Components Used
+## Oracle Cloud Always Free Resources Used
 
-| Service | Tier | Limit |
-|---------|------|-------|
-| EC2 t2.micro | 12-month free | 750 hrs/month, 1 vCPU, 1 GB RAM |
-| EBS gp3 | 12-month free | 30 GB storage |
-| Data transfer | Always free | 100 GB/month outbound |
+| Resource | Always Free Limit | We Use |
+|----------|------------------|--------|
+| ARM VM (Ampere A1) | 4 OCPUs + 24 GB RAM total (across up to 4 VMs) | 1 OCPU + 6 GB RAM |
+| Boot Volume | 200 GB total | 50 GB |
+| Outbound Traffic | 10 TB/month | minimal |
+| Object Storage | 20 GB | not needed |
+
+## Prerequisites
+
+- **Oracle Cloud account** — requires credit card for verification (not charged)
+- **GitHub repository** with Actions enabled
 
 ## Step-by-Step Setup
 
-### 1. Provision EC2 Instance (One-Time)
+### 1. Create Oracle Cloud Account
 
-1. Launch an **EC2 t2.micro** instance:
-   - AMI: Amazon Linux 2023
-   - Instance type: t2.micro
-   - Storage: 20 GB gp3 (within 30 GB free limit)
-   - Security group: allow inbound **SSH (22)** and **TCP 8080** (restrict to your IP for testing)
+1. Go to [cloud.oracle.com](https://cloud.oracle.com) and sign up
+2. Choose a **Home Region** with ARM capacity (Frankfurt, Amsterdam, or London work well)
+3. Provide credit card for verification — it will **not be charged**
+4. Your account starts as "Always Free" — you must explicitly upgrade to paid to incur costs
 
-2. Create or assign a **key pair** for SSH access.
+### 2. Create the VM Instance (One-Time)
 
-3. Allocate an **Elastic IP** (free while associated with a running instance) so the IP doesn't change on restart.
+1. Go to **Compute > Instances > Create Instance**
+2. Configure:
+   - **Name:** `provisioncalculator`
+   - **Image:** Oracle Linux 9
+   - **Shape:** VM.Standard.A1.Flex (Ampere ARM)
+     - OCPUs: **1**
+     - Memory: **6 GB**
+   - **Boot volume:** 50 GB (within Always Free)
+   - **Networking:** Create new VCN + public subnet, assign public IP
+   - **SSH key:** Upload or paste your public key
+3. Click **Create**
 
-### 2. Configure the Instance
+### 3. Configure Security Rules
 
-SSH into the instance and run:
+In **Networking > Virtual Cloud Networks > your VCN > Security Lists > Default**:
+
+Add an **Ingress Rule**:
+- Source CIDR: `0.0.0.0/0` (or restrict to your IP)
+- Destination Port: **8080**
+- Protocol: TCP
+
+SSH (port 22) is open by default.
+
+### 4. Configure the Instance
+
+SSH into the instance:
 
 ```bash
-# Install Java 21
-sudo dnf install -y java-21-amazon-corretto-headless
+ssh -i your_key opc@<PUBLIC_IP>
+```
 
-# Install and start PostgreSQL
-sudo dnf install -y postgresql15-server
+Install Java and PostgreSQL:
+
+```bash
+# Install Java 21 (ARM build)
+sudo dnf install -y java-21-openjdk-headless
+
+# Install PostgreSQL
+sudo dnf install -y postgresql-server
 sudo postgresql-setup --initdb
 sudo systemctl enable postgresql
 sudo systemctl start postgresql
@@ -80,7 +113,14 @@ sudo sed -i 's/ident$/md5/' /var/lib/pgsql/data/pg_hba.conf
 sudo systemctl restart postgresql
 ```
 
-### 3. Create systemd Service (One-Time)
+Open firewall on the OS level:
+
+```bash
+sudo firewall-cmd --permanent --add-port=8080/tcp
+sudo firewall-cmd --reload
+```
+
+### 5. Create systemd Service (One-Time)
 
 ```bash
 sudo tee /etc/systemd/system/provisioncalculator.service > /dev/null <<'EOF'
@@ -89,8 +129,8 @@ Description=Provision Calculator Service
 After=network.target postgresql.service
 
 [Service]
-User=ec2-user
-ExecStart=/usr/bin/java -jar /opt/provisioncalculator/app.jar --spring.profiles.active=aws
+User=opc
+ExecStart=/usr/bin/java -jar /opt/provisioncalculator/app.jar --spring.profiles.active=oci
 Restart=always
 RestartSec=5
 StandardOutput=journal
@@ -101,13 +141,14 @@ WantedBy=multi-user.target
 EOF
 
 sudo mkdir -p /opt/provisioncalculator
-sudo chown ec2-user:ec2-user /opt/provisioncalculator
+sudo chown opc:opc /opt/provisioncalculator
+sudo systemctl daemon-reload
 sudo systemctl enable provisioncalculator
 ```
 
-### 4. Add AWS Spring Profile
+### 6. Add OCI Spring Profile
 
-Create `src/main/resources/application-aws.yml`:
+Create `src/main/resources/application-oci.yml` in the project:
 
 ```yaml
 spring:
@@ -125,17 +166,16 @@ server:
   port: 8080
 ```
 
-### 5. Store Secrets in GitHub
+### 7. Store Secrets in GitHub
 
 Go to **Settings > Secrets and variables > Actions** in your GitHub repo and add:
 
 | Secret | Value |
 |--------|-------|
-| `EC2_HOST` | Your Elastic IP address |
-| `EC2_SSH_KEY` | Contents of your `.pem` private key |
-| `EC2_USER` | `ec2-user` |
+| `OCI_HOST` | Your VM's public IP address |
+| `OCI_SSH_KEY` | Contents of your private SSH key |
 
-### 6. GitHub Actions Deployment Workflow
+### 8. GitHub Actions Deployment Workflow
 
 Create `.github/workflows/deploy.yml`:
 
@@ -165,11 +205,10 @@ jobs:
       - name: Build JAR
         run: gradle bootJar
 
-      - name: Deploy to EC2
+      - name: Deploy to OCI
         env:
-          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-          HOST: ${{ secrets.EC2_HOST }}
-          USER: ${{ secrets.EC2_USER }}
+          SSH_KEY: ${{ secrets.OCI_SSH_KEY }}
+          HOST: ${{ secrets.OCI_HOST }}
         run: |
           # Write SSH key
           echo "$SSH_KEY" > deploy_key.pem
@@ -178,14 +217,14 @@ jobs:
 
           # Upload JAR
           scp $SSH_OPTS build/libs/provisioncalculator-0.0.1-SNAPSHOT.jar \
-            $USER@$HOST:/opt/provisioncalculator/app.jar
+            opc@$HOST:/opt/provisioncalculator/app.jar
 
           # Restart service
-          ssh $SSH_OPTS $USER@$HOST "sudo systemctl restart provisioncalculator"
+          ssh $SSH_OPTS opc@$HOST "sudo systemctl restart provisioncalculator"
 
-          # Wait and verify health
+          # Wait and verify
           sleep 10
-          ssh $SSH_OPTS $USER@$HOST "curl -sf http://localhost:8080/api/v1/tenants/health-check/settlements || echo 'Service started (no health endpoint yet)'"
+          ssh $SSH_OPTS opc@$HOST "systemctl is-active provisioncalculator"
 
           # Cleanup
           rm -f deploy_key.pem
@@ -198,34 +237,42 @@ jobs:
 3. Tag with a version (e.g., `v0.1.0`), write release notes, publish
 4. The GitHub Action automatically:
    - Builds the fat JAR with `gradle bootJar`
-   - Copies it to the EC2 instance via SCP
+   - Copies it to the OCI VM via SCP
    - Restarts the systemd service
-5. The app is accessible at `http://<ELASTIC_IP>:8080`
+5. The app is accessible at `http://<PUBLIC_IP>:8080`
 
 ## Cost Summary
 
-| Component | Monthly Cost |
-|-----------|-------------|
-| EC2 t2.micro (24/7) | $0 (free tier) |
-| EBS 20 GB gp3 | $0 (within 30 GB free) |
-| Elastic IP (associated) | $0 |
-| Data transfer (< 100 GB) | $0 |
-| GitHub Actions | $0 (public repo) |
-| **Total** | **$0** |
-
-**Note:** The EC2 free tier expires after 12 months from AWS account creation. After that, a t2.micro costs ~$8.50/month. Shut down the instance when not testing to avoid charges.
+| Component | Monthly Cost | Expiration |
+|-----------|-------------|------------|
+| VM.Standard.A1.Flex (1 OCPU, 6 GB) | $0 | **Never** |
+| Boot Volume 50 GB | $0 | **Never** |
+| Outbound Traffic | $0 | **Never** |
+| Public IP | $0 | **Never** |
+| GitHub Actions | $0 (public repo) | **Never** |
+| **Total** | **$0** | **Permanent** |
 
 ## Limitations
 
 - **Not production-grade** — single instance, no redundancy, no HTTPS, no domain
-- **1 GB RAM** — t2.micro has limited memory; JVM is configured with defaults (~256 MB heap). For the 5000-node performance test, this should be sufficient
-- **No HTTPS** — for test purposes only. To add HTTPS, put a free Cloudflare proxy in front or use Let's Encrypt with nginx
+- **ARM architecture** — the Spring Boot fat JAR runs on any JVM, so ARM is no issue. JDK 21 has full ARM support
+- **No HTTPS** — for test purposes only. To add HTTPS later, use a free Cloudflare proxy or Let's Encrypt with nginx
 - **PostgreSQL on same instance** — acceptable for testing, not recommended for production
+- **OCI ARM capacity** — ARM instances are in high demand. If creation fails with "out of capacity", retry later or try a different availability domain
 
-## Future Improvements (Beyond Free Tier)
+## Useful Commands
 
-If you later need a more robust setup:
-- Move PostgreSQL to **RDS db.t3.micro** (still free tier for 12 months)
-- Add an **Application Load Balancer** with ACM certificate for HTTPS
-- Use **ECS Fargate** or **Elastic Beanstalk** for container orchestration
-- Use **SSM Parameter Store** for secrets instead of GitHub Secrets
+```bash
+# Check service status
+sudo systemctl status provisioncalculator
+
+# View logs
+sudo journalctl -u provisioncalculator -f
+
+# Restart service
+sudo systemctl restart provisioncalculator
+
+# Check PostgreSQL
+sudo systemctl status postgresql
+sudo -u postgres psql -d provisioncalculator -c "SELECT count(*) FROM settlement;"
+```
