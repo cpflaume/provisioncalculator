@@ -1,0 +1,47 @@
+name: Deploy on Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build JAR
+        run: gradle bootJar
+
+      - name: Deploy to OCI
+        env:
+          SSH_KEY: ${{ secrets.ORACLE_VM_SSH_KEY }}
+          HOST: ${{ secrets.OCI_HOST }}
+        run: |
+          echo "$SSH_KEY" > deploy_key.pem
+          chmod 600 deploy_key.pem
+          SSH_OPTS="-o StrictHostKeyChecking=no -i deploy_key.pem"
+
+          JAR_FILE=$(ls build/libs/*.jar | head -1)
+
+          scp $SSH_OPTS "$JAR_FILE" opc@$HOST:/opt/provisioncalculator/app.jar
+
+          ssh $SSH_OPTS opc@$HOST "sudo systemctl restart provisioncalculator"
+
+          sleep 10
+          ssh $SSH_OPTS opc@$HOST "systemctl is-active provisioncalculator"
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f deploy_key.pem

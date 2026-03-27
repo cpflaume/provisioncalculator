@@ -1,0 +1,14 @@
+{
+  "rates": [
+    { "depth": 1, "ratePercent": 5.0 },
+    { "depth": 2, "ratePercent": 3.0 },
+    { "depth": 3, "ratePercent": 1.0 }
+  ],
+  "tree": [
+    { "customerId": "A", "parentCustomerId": null },
+    { "customerId": "B", "parentCustomerId": "A" },
+    { "customerId": "C", "parentCustomerId": "B" },
+    { "customerId": "D", "parentCustomerId": "B" },
+    { "customerId": "E", "parentCustomerId": "C" }
+  ]
+}

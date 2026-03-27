@@ -1,0 +1,7 @@
+{
+  "rates": [
+    { "depth": 1, "ratePercent": 5.0 },
+    { "depth": 2, "ratePercent": 3.0 },
+    { "depth": 3, "ratePercent": 1.0 }
+  ]
+}

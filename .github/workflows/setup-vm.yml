@@ -1,0 +1,50 @@
+name: Setup OCI VM
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup VM via SSH
+        env:
+          SSH_KEY: ${{ secrets.ORACLE_VM_SSH_KEY }}
+          HOST: ${{ secrets.OCI_HOST }}
+        run: |
+          echo "$SSH_KEY" > deploy_key.pem
+          chmod 600 deploy_key.pem
+          SSH_OPTS="-o StrictHostKeyChecking=no -i deploy_key.pem"
+
+          scp $SSH_OPTS scripts/setup-oci-vm.sh opc@$HOST:/tmp/setup-oci-vm.sh
+
+          ssh $SSH_OPTS opc@$HOST "chmod +x /tmp/setup-oci-vm.sh && /tmp/setup-oci-vm.sh"
+
+          echo "--- Verification ---"
+          ssh $SSH_OPTS opc@$HOST "java -version && sudo -u postgres psql -d provisioncalculator -c 'SELECT 1;'"
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f deploy_key.pem
+
+      - name: Post Summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY <<'EOF'
+          ## OCI VM Setup
+
+          | Component | Status |
+          |-----------|--------|
+          | Java 21 | Installed |
+          | PostgreSQL | Installed + DB created |
+          | Firewall (8080) | Opened |
+          | systemd service | Created + enabled |
+
+          **Next steps:**
+          1. Add OCI Security Rule: open port 8080 (TCP) in VCN Security List
+          2. Create a GitHub Release to trigger first deployment
+          EOF

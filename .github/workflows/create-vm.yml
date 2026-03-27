@@ -1,0 +1,81 @@
+name: Retry OCI Stack
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 * * * *'
+
+env:
+  OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
+  OCI_CLI_USER: ${{ secrets.OCI_CLI_USER }}
+  OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
+  OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
+  OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
+
+jobs:
+  retry-stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Install OCI CLI
+        run: |
+          pip install oci-cli
+
+      - name: Check stack and retry if failed
+        run: |
+          STACK_ID="${{ secrets.OCI_STACK_ID }}"
+
+          # Get last job status
+          LAST_STATUS=$(oci resource-manager job list \
+            --stack-id "$STACK_ID" \
+            --sort-by TIMECREATED \
+            --sort-order DESC \
+            --limit 1 \
+            --query 'data[0]."lifecycle-state"' \
+            --raw-output)
+
+          echo "Last job status: $LAST_STATUS"
+
+          if [ "$LAST_STATUS" = "SUCCEEDED" ]; then
+            echo "## Stack OK — nothing to do" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
+          if [ "$LAST_STATUS" = "IN_PROGRESS" ]; then
+            echo "## Job already running — skipping" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
+          # Status is FAILED or other — trigger apply
+          echo "Triggering apply..."
+          JOB_ID=$(oci resource-manager job create-apply-job \
+            --stack-id "$STACK_ID" \
+            --execution-plan-strategy AUTO_APPROVED \
+            --query 'data.id' \
+            --raw-output)
+
+          echo "Apply job started: $JOB_ID"
+
+          # Wait for result
+          for i in $(seq 1 40); do
+            sleep 15
+            STATUS=$(oci resource-manager job get \
+              --job-id "$JOB_ID" \
+              --query 'data."lifecycle-state"' \
+              --raw-output)
+            echo "  [$i] $STATUS"
+
+            if [ "$STATUS" = "SUCCEEDED" ]; then
+              echo "## VM Created" >> $GITHUB_STEP_SUMMARY
+              echo "Stack apply succeeded. Check OCI Console for the public IP." >> $GITHUB_STEP_SUMMARY
+              exit 0
+            elif [ "$STATUS" = "FAILED" ]; then
+              echo "## Failed — will retry next schedule" >> $GITHUB_STEP_SUMMARY
+              echo "Job: \`$JOB_ID\`" >> $GITHUB_STEP_SUMMARY
+              exit 1
+            fi
+          done
+
+          echo "## Timeout waiting for job" >> $GITHUB_STEP_SUMMARY
+          exit 1

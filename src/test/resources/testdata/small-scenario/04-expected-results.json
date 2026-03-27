@@ -1,0 +1,20 @@
+{
+  "_comment": [
+    "Tree: A -> B -> C -> E, A -> B -> D",
+    "Rates: depth1=5%, depth2=3%, depth3=1%",
+    "",
+    "E buys 100:  C gets 5.00 (d1), B gets 3.00 (d2), A gets 1.00 (d3)",
+    "D buys 200:  B gets 10.00 (d1), A gets 6.00 (d2)",
+    "C buys 50:   B gets 2.50 (d1), A gets 1.50 (d2)",
+    "B buys 300:  A gets 15.00 (d1)",
+    "",
+    "Totals: A = 23.50, B = 15.50, C = 5.00"
+  ],
+  "expectedRecipientCount": 3,
+  "expectedTotals": {
+    "A": 23.50,
+    "B": 15.50,
+    "C": 5.00
+  },
+  "expectedAuditEntryCount": 8
+}
