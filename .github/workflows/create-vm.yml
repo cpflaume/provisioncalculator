@@ -1,0 +1,223 @@
+name: Create OCI VM
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Retry every 2 hours between 6:00-22:00 UTC
+    - cron: '0 6,8,10,12,14,16,18,20,22 * * *'
+
+env:
+  OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
+  OCI_CLI_USER: ${{ secrets.OCI_CLI_USER }}
+  OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
+  OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
+  OCI_CLI_REGION: ${{ secrets.OCI_CLI_REGION }}
+  STACK_NAME: provisioncalculator-stack
+
+jobs:
+  create-vm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- Check if VM already exists ---
+      - name: Check for existing instance
+        id: check
+        run: |
+          INSTANCE=$(oci compute instance list \
+            --compartment-id "${{ secrets.OCI_COMPARTMENT_ID }}" \
+            --display-name "provisioncalculator" \
+            --lifecycle-state RUNNING \
+            --query 'data[0].id' \
+            --raw-output 2>/dev/null || true)
+
+          if [ -n "$INSTANCE" ] && [ "$INSTANCE" != "null" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            IP=$(oci compute instance list-vnics \
+              --instance-id "$INSTANCE" \
+              --query 'data[0]."public-ip"' \
+              --raw-output)
+            echo "## VM Already Running" >> $GITHUB_STEP_SUMMARY
+            echo "Instance: \`$INSTANCE\`" >> $GITHUB_STEP_SUMMARY
+            echo "Public IP: \`$IP\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Set this as GitHub Secret \`OCI_HOST\`: \`$IP\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # --- Check last stack job status ---
+      - name: Check existing stack
+        if: steps.check.outputs.skip == 'false'
+        id: stack
+        run: |
+          # Find existing stack
+          STACK_ID=$(oci resource-manager stack list \
+            --compartment-id "${{ secrets.OCI_COMPARTMENT_ID }}" \
+            --display-name "$STACK_NAME" \
+            --lifecycle-state ACTIVE \
+            --query 'data[0].id' \
+            --raw-output 2>/dev/null || true)
+
+          if [ -n "$STACK_ID" ] && [ "$STACK_ID" != "null" ]; then
+            echo "stack_id=$STACK_ID" >> "$GITHUB_OUTPUT"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+
+            # Check last job
+            LAST_JOB=$(oci resource-manager job list \
+              --stack-id "$STACK_ID" \
+              --sort-by TIMECREATED \
+              --sort-order DESC \
+              --limit 1 \
+              --query 'data[0].{status:"lifecycle-state",operation:operation,id:id}' \
+              --output json 2>/dev/null || echo '{}')
+
+            LAST_STATUS=$(echo "$LAST_JOB" | jq -r '.status // "NONE"')
+            echo "last_status=$LAST_STATUS" >> "$GITHUB_OUTPUT"
+            echo "Last job status: $LAST_STATUS"
+
+            if [ "$LAST_STATUS" = "SUCCEEDED" ]; then
+              echo "should_apply=false" >> "$GITHUB_OUTPUT"
+              echo "Stack already succeeded — VM should exist."
+            elif [ "$LAST_STATUS" = "IN_PROGRESS" ]; then
+              echo "should_apply=false" >> "$GITHUB_OUTPUT"
+              echo "Job already in progress — skipping."
+            else
+              echo "should_apply=true" >> "$GITHUB_OUTPUT"
+              echo "Last job status is $LAST_STATUS — will retry."
+            fi
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "should_apply=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # --- Create stack if it doesn't exist ---
+      - name: Package Terraform
+        if: steps.check.outputs.skip == 'false' && steps.stack.outputs.should_apply == 'true'
+        run: |
+          cd terraform
+          zip -r ../terraform.zip .
+
+      - name: Create stack
+        if: steps.check.outputs.skip == 'false' && steps.stack.outputs.exists == 'false' && steps.stack.outputs.should_apply == 'true'
+        id: create_stack
+        run: |
+          STACK_ID=$(oci resource-manager stack create \
+            --compartment-id "${{ secrets.OCI_COMPARTMENT_ID }}" \
+            --display-name "$STACK_NAME" \
+            --config-source terraform.zip \
+            --variables "{
+              \"compartment_ocid\": \"${{ secrets.OCI_COMPARTMENT_ID }}\",
+              \"availability_domain\": \"${{ secrets.OCI_AVAILABILITY_DOMAIN }}\",
+              \"ssh_public_key\": \"${{ secrets.OCI_SSH_PUBLIC_KEY }}\",
+              \"region\": \"${{ secrets.OCI_CLI_REGION }}\"
+            }" \
+            --query 'data.id' \
+            --raw-output)
+
+          echo "stack_id=$STACK_ID" >> "$GITHUB_OUTPUT"
+          echo "Created stack: $STACK_ID"
+
+      - name: Update stack config
+        if: steps.check.outputs.skip == 'false' && steps.stack.outputs.exists == 'true' && steps.stack.outputs.should_apply == 'true'
+        run: |
+          oci resource-manager stack update \
+            --stack-id "${{ steps.stack.outputs.stack_id }}" \
+            --config-source terraform.zip \
+            --variables "{
+              \"compartment_ocid\": \"${{ secrets.OCI_COMPARTMENT_ID }}\",
+              \"availability_domain\": \"${{ secrets.OCI_AVAILABILITY_DOMAIN }}\",
+              \"ssh_public_key\": \"${{ secrets.OCI_SSH_PUBLIC_KEY }}\",
+              \"region\": \"${{ secrets.OCI_CLI_REGION }}\"
+            }" \
+            --force
+
+      # --- Apply ---
+      - name: Apply stack
+        if: steps.check.outputs.skip == 'false' && steps.stack.outputs.should_apply == 'true'
+        id: apply
+        run: |
+          STACK_ID="${{ steps.create_stack.outputs.stack_id || steps.stack.outputs.stack_id }}"
+
+          JOB_ID=$(oci resource-manager job create-apply-job \
+            --stack-id "$STACK_ID" \
+            --execution-plan-strategy AUTO_APPROVED \
+            --query 'data.id' \
+            --raw-output)
+
+          echo "job_id=$JOB_ID" >> "$GITHUB_OUTPUT"
+          echo "Started apply job: $JOB_ID"
+
+          # Wait for job to complete (max 10 min)
+          for i in $(seq 1 40); do
+            sleep 15
+            STATUS=$(oci resource-manager job get \
+              --job-id "$JOB_ID" \
+              --query 'data."lifecycle-state"' \
+              --raw-output)
+            echo "  [$i] Status: $STATUS"
+
+            if [ "$STATUS" = "SUCCEEDED" ]; then
+              echo "result=success" >> "$GITHUB_OUTPUT"
+              break
+            elif [ "$STATUS" = "FAILED" ]; then
+              echo "result=failed" >> "$GITHUB_OUTPUT"
+
+              # Check if it's an out-of-capacity error
+              LOGS=$(oci resource-manager job get-job-logs \
+                --job-id "$JOB_ID" \
+                --query 'data[*].message' \
+                --output json 2>/dev/null || echo '[]')
+
+              if echo "$LOGS" | grep -qi "out of.*capacity\|out of host capacity"; then
+                echo "reason=out_of_capacity" >> "$GITHUB_OUTPUT"
+                echo "Failed: Out of capacity — will retry on next schedule."
+              else
+                echo "reason=other" >> "$GITHUB_OUTPUT"
+                echo "Failed: See logs for details."
+                echo "$LOGS" | head -20
+              fi
+              break
+            fi
+          done
+
+      # --- Summary ---
+      - name: Post summary
+        if: always() && steps.check.outputs.skip == 'false'
+        run: |
+          RESULT="${{ steps.apply.outputs.result }}"
+          REASON="${{ steps.apply.outputs.reason }}"
+          SHOULD="${{ steps.stack.outputs.should_apply }}"
+
+          if [ "$SHOULD" = "false" ]; then
+            echo "## Skipped" >> $GITHUB_STEP_SUMMARY
+            echo "Last job status: ${{ steps.stack.outputs.last_status }} — no retry needed." >> $GITHUB_STEP_SUMMARY
+          elif [ "$RESULT" = "success" ]; then
+            STACK_ID="${{ steps.create_stack.outputs.stack_id || steps.stack.outputs.stack_id }}"
+            IP=$(oci resource-manager job get-job-outputs \
+              --job-id "${{ steps.apply.outputs.job_id }}" \
+              --query 'data.items[?output_name==`instance_public_ip`].output_value' \
+              --raw-output 2>/dev/null || echo "check OCI console")
+
+            echo "## VM Created Successfully" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| | |" >> $GITHUB_STEP_SUMMARY
+            echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+            echo "| **Public IP** | \`$IP\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Next step** | Add \`$IP\` as GitHub Secret \`OCI_HOST\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Then** | Run **Setup OCI VM** workflow |" >> $GITHUB_STEP_SUMMARY
+          elif [ "$REASON" = "out_of_capacity" ]; then
+            echo "## Out of Capacity — Will Retry" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "ARM instances are not available right now." >> $GITHUB_STEP_SUMMARY
+            echo "The workflow will automatically retry every 2 hours." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "You can also trigger manually: **Actions > Create OCI VM > Run workflow**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Job ID: \`${{ steps.apply.outputs.job_id }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "Check the OCI Console for details." >> $GITHUB_STEP_SUMMARY
+          fi

@@ -50,119 +50,82 @@ GitHub Actions Workflow
 - [x] Create Oracle Cloud Always Free account
 - [x] `application-oci.yml` — Spring profile for OCI (in repo)
 - [x] `.github/workflows/deploy.yml` — Release-triggered deployment (in repo)
-- [ ] Create ARM VM instance (Step 1 below)
-- [ ] Configure security rules (Step 2)
-- [ ] Install Java 21 + PostgreSQL on VM (Step 3)
-- [ ] Create systemd service (Step 4)
-- [ ] Add GitHub secrets `OCI_HOST` + `OCI_SSH_KEY` (Step 5)
+- [x] `terraform/` — Terraform config for VM + networking (in repo)
+- [x] `.github/workflows/create-vm.yml` — Auto-retry VM creation on "Out of capacity" (in repo)
+- [x] `.github/workflows/setup-vm.yml` — One-click VM provisioning via SSH (in repo)
+- [x] `scripts/setup-oci-vm.sh` — Setup script for Java, PostgreSQL, systemd (in repo)
+- [ ] Add OCI CLI secrets to GitHub (see table below)
+- [ ] Run **Create OCI VM** workflow (retries automatically until ARM is available)
+- [ ] Run **Setup OCI VM** workflow (installs Java, PostgreSQL, systemd service)
+- [ ] Add `OCI_HOST` secret with the VM's public IP
 - [ ] Create first GitHub Release to trigger deployment
+
+## GitHub Secrets Required
+
+Go to **Settings > Secrets and variables > Actions** and add:
+
+| Secret | Where to find it | Purpose |
+|--------|-----------------|---------|
+| `OCI_CLI_TENANCY` | OCI Console > Profile > Tenancy OCID | OCI API auth |
+| `OCI_CLI_USER` | OCI Console > Profile > User OCID | OCI API auth |
+| `OCI_CLI_FINGERPRINT` | OCI Console > Profile > API Keys > Fingerprint | OCI API auth |
+| `OCI_CLI_KEY_CONTENT` | The private key (PEM) you downloaded when creating the API key | OCI API auth |
+| `OCI_CLI_REGION` | e.g. `eu-frankfurt-1` | OCI region |
+| `OCI_COMPARTMENT_ID` | OCI Console > Identity > Compartments > root > OCID | Where to create resources |
+| `OCI_AVAILABILITY_DOMAIN` | OCI Console > Compute > Availability Domains (e.g. `Xyzz:EU-FRANKFURT-1-AD-1`) | VM placement |
+| `OCI_SSH_PUBLIC_KEY` | Your `~/.ssh/id_rsa.pub` content | SSH into VM |
+| `OCI_SSH_KEY` | Your `~/.ssh/id_rsa` private key content | Used by deploy + setup workflows |
+
+**To create an OCI API Key:** Profile icon (top right) > My profile > API keys > Add API key > Generate API key pair > Download both keys.
+
+## Automated Workflows
+
+| Workflow | Trigger | What it does |
+|----------|---------|-------------|
+| **Create OCI VM** | Manual + every 2h (cron) | Creates VM via OCI Resource Manager Stack. Skips if VM already running. Retries automatically on "Out of capacity". |
+| **Setup OCI VM** | Manual | SSHs into VM, installs Java 21, PostgreSQL, creates DB, systemd service |
+| **Deploy on Release** | GitHub Release published | Builds JAR, SCPs to VM, restarts service |
 
 ## Step-by-Step Setup
 
-### 1. Create the VM Instance (One-Time)
+### 1. Create the VM Instance (Automated)
 
-1. Go to **Compute > Instances > Create Instance**
-2. Configure:
-   - **Name:** `provisioncalculator`
-   - **Image:** Oracle Linux 9
-   - **Shape:** VM.Standard.A1.Flex (Ampere ARM)
-     - OCPUs: **1**
-     - Memory: **6 GB**
-   - **Boot volume:** 50 GB (within Always Free)
-   - **Networking:** Create new VCN + public subnet, assign public IP
-   - **SSH key:** Upload or paste your public key
-3. Click **Create**
+The VM is created automatically via Terraform (OCI Resource Manager Stack):
 
-### 3. Configure Security Rules
+1. Add all GitHub Secrets from the table above
+2. Go to **Actions > "Create OCI VM" > Run workflow**
+3. If ARM capacity is unavailable, the workflow retries automatically every 2 hours
+4. Once successful, the job summary shows the **Public IP**
+5. Add the IP as GitHub Secret `OCI_HOST`
 
-In **Networking > Virtual Cloud Networks > your VCN > Security Lists > Default**:
+The Terraform config (`terraform/main.tf`) creates: VCN, subnet, internet gateway, security list (SSH + port 8080), and the ARM VM instance.
 
-Add an **Ingress Rule**:
-- Source CIDR: `0.0.0.0/0` (or restrict to your IP)
-- Destination Port: **8080**
-- Protocol: TCP
+**Manual alternative:** You can also create the VM in the OCI Console (Compute > Instances > Create Instance) with shape `VM.Standard.A1.Flex`, 1 OCPU, 6 GB RAM, Oracle Linux 9.
 
-SSH (port 22) is open by default.
+### 2. Provision the VM (Automated)
 
-### 4. Configure the Instance
+Once the VM is running and `OCI_HOST` secret is set:
 
-SSH into the instance:
+1. Go to **Actions > "Setup OCI VM" > Run workflow**
+2. This runs `scripts/setup-oci-vm.sh` on the VM via SSH, which installs:
+   - Java 21
+   - PostgreSQL + database `provisioncalculator`
+   - Firewall rule for port 8080
+   - systemd service `provisioncalculator`
+
+**Manual alternative:** SSH into the VM and run the script yourself:
 
 ```bash
 ssh -i your_key opc@<PUBLIC_IP>
+# then copy/paste scripts/setup-oci-vm.sh content
 ```
 
-Install Java and PostgreSQL:
+### 3. First Deployment
 
-```bash
-# Install Java 21 (ARM build)
-sudo dnf install -y java-21-openjdk-headless
-
-# Install PostgreSQL
-sudo dnf install -y postgresql-server
-sudo postgresql-setup --initdb
-sudo systemctl enable postgresql
-sudo systemctl start postgresql
-
-# Create database and user
-sudo -u postgres psql -c "CREATE USER provision WITH PASSWORD 'provision_secret';"
-sudo -u postgres psql -c "CREATE DATABASE provisioncalculator OWNER provision;"
-
-# Allow password auth for local connections
-sudo sed -i 's/ident$/md5/' /var/lib/pgsql/data/pg_hba.conf
-sudo systemctl restart postgresql
-```
-
-Open firewall on the OS level:
-
-```bash
-sudo firewall-cmd --permanent --add-port=8080/tcp
-sudo firewall-cmd --reload
-```
-
-### 5. Create systemd Service (One-Time)
-
-```bash
-sudo tee /etc/systemd/system/provisioncalculator.service > /dev/null <<'EOF'
-[Unit]
-Description=Provision Calculator Service
-After=network.target postgresql.service
-
-[Service]
-User=opc
-ExecStart=/usr/bin/java -jar /opt/provisioncalculator/app.jar --spring.profiles.active=oci
-Restart=always
-RestartSec=5
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo mkdir -p /opt/provisioncalculator
-sudo chown opc:opc /opt/provisioncalculator
-sudo systemctl daemon-reload
-sudo systemctl enable provisioncalculator
-```
-
-### 5. Store Secrets in GitHub
-
-Go to **Settings > Secrets and variables > Actions** in your GitHub repo and add:
-
-| Secret | Value |
-|--------|-------|
-| `OCI_HOST` | Your VM's public IP address |
-| `OCI_SSH_KEY` | Contents of your private SSH key |
-
-### Files Already in the Repository
-
-These files are ready to use — no manual creation needed:
-
-| File | Purpose |
-|------|---------|
-| `src/main/resources/application-oci.yml` | Spring profile for OCI (PostgreSQL on localhost, Flyway enabled) |
-| `.github/workflows/deploy.yml` | GitHub Actions workflow triggered on Release publish |
+1. Create a GitHub Release (tag e.g. `v0.1.0`)
+2. The **Deploy on Release** workflow automatically builds the JAR and deploys it
+3. The app is accessible at `http://<PUBLIC_IP>:8080`
+4. Swagger UI is at `http://<PUBLIC_IP>:8080/swagger-ui.html`
 
 ## Deployment Workflow
 
