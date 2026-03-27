@@ -50,7 +50,6 @@ GitHub Actions Workflow
 - [x] Create Oracle Cloud Always Free account
 - [x] `application-oci.yml` — Spring profile for OCI (in repo)
 - [x] `.github/workflows/deploy.yml` — Release-triggered deployment (in repo)
-- [x] `terraform/` — Terraform config for VM + networking (in repo)
 - [x] `.github/workflows/create-vm.yml` — Auto-retry VM creation on "Out of capacity" (in repo)
 - [x] `.github/workflows/setup-vm.yml` — One-click VM provisioning via SSH (in repo)
 - [x] `scripts/setup-oci-vm.sh` — Setup script for Java, PostgreSQL, systemd (in repo)
@@ -74,7 +73,7 @@ Go to **Settings > Secrets and variables > Actions** and add:
 | `OCI_COMPARTMENT_ID` | OCI Console > Identity > Compartments > root > OCID | Where to create resources |
 | `OCI_AVAILABILITY_DOMAIN` | OCI Console > Compute > Availability Domains (e.g. `Xyzz:EU-FRANKFURT-1-AD-1`) | VM placement |
 | `OCI_SSH_PUBLIC_KEY` | Your `~/.ssh/id_rsa.pub` content | SSH into VM |
-| `OCI_SSH_KEY` | Your `~/.ssh/id_rsa` private key content | Used by deploy + setup workflows |
+| `ORACLE_VM_SSH_KEY` | Your `~/.ssh/id_rsa` private key content | Used by deploy + setup workflows |
 
 **To create an OCI API Key:** Profile icon (top right) > My profile > API keys > Add API key > Generate API key pair > Download both keys.
 
@@ -98,7 +97,7 @@ The VM is created automatically via Terraform (OCI Resource Manager Stack):
 4. Once successful, the job summary shows the **Public IP**
 5. Add the IP as GitHub Secret `OCI_HOST`
 
-The Terraform config (`terraform/main.tf`) creates: VCN, subnet, internet gateway, security list (SSH + port 8080), and the ARM VM instance.
+The VM is created via an existing OCI Resource Manager Stack. The workflow checks the last job status and retries if it failed.
 
 **Manual alternative:** You can also create the VM in the OCI Console (Compute > Instances > Create Instance) with shape `VM.Standard.A1.Flex`, 1 OCPU, 6 GB RAM, Oracle Linux 9.
 

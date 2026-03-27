@@ -26,7 +26,7 @@ jobs:
 
       - name: Deploy to OCI
         env:
-          SSH_KEY: ${{ secrets.OCI_SSH_KEY }}
+          SSH_KEY: ${{ secrets.ORACLE_VM_SSH_KEY }}
           HOST: ${{ secrets.OCI_HOST }}
         run: |
           # Write SSH key
