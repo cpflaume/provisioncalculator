@@ -2,9 +2,6 @@ name: Performance Test
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - claude/review-plan-start-implementation-aUjVR
 
 jobs:
   performance:

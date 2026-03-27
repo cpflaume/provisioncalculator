@@ -81,7 +81,7 @@ Go to **Settings > Secrets and variables > Actions** and add:
 
 | Workflow | Trigger | What it does |
 |----------|---------|-------------|
-| **Create OCI VM** | Manual + every 2h (cron) | Creates VM via OCI Resource Manager Stack. Skips if VM already running. Retries automatically on "Out of capacity". |
+| **Create OCI VM** | Manual + hourly (cron) | Checks OCI Resource Manager Stack status. Retries apply if failed. Skips if already succeeded or in progress. |
 | **Setup OCI VM** | Manual | SSHs into VM, installs Java 21, PostgreSQL, creates DB, systemd service |
 | **Deploy on Release** | GitHub Release published | Builds JAR, SCPs to VM, restarts service |
 
@@ -89,15 +89,13 @@ Go to **Settings > Secrets and variables > Actions** and add:
 
 ### 1. Create the VM Instance (Automated)
 
-The VM is created automatically via Terraform (OCI Resource Manager Stack):
+The VM is created via an existing OCI Resource Manager Stack. The workflow checks the last job status and retries the apply if it failed:
 
 1. Add all GitHub Secrets from the table above
 2. Go to **Actions > "Create OCI VM" > Run workflow**
-3. If ARM capacity is unavailable, the workflow retries automatically every 2 hours
+3. If ARM capacity is unavailable, the workflow retries automatically every hour
 4. Once successful, the job summary shows the **Public IP**
 5. Add the IP as GitHub Secret `OCI_HOST`
-
-The VM is created via an existing OCI Resource Manager Stack. The workflow checks the last job status and retries if it failed.
 
 **Manual alternative:** You can also create the VM in the OCI Console (Compute > Instances > Create Instance) with shape `VM.Standard.A1.Flex`, 1 OCPU, 6 GB RAM, Oracle Linux 9.
 

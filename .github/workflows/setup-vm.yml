@@ -20,17 +20,16 @@ jobs:
           chmod 600 deploy_key.pem
           SSH_OPTS="-o StrictHostKeyChecking=no -i deploy_key.pem"
 
-          # Copy setup script to VM
           scp $SSH_OPTS scripts/setup-oci-vm.sh opc@$HOST:/tmp/setup-oci-vm.sh
 
-          # Run setup script
           ssh $SSH_OPTS opc@$HOST "chmod +x /tmp/setup-oci-vm.sh && /tmp/setup-oci-vm.sh"
 
-          # Verify
           echo "--- Verification ---"
           ssh $SSH_OPTS opc@$HOST "java -version && sudo -u postgres psql -d provisioncalculator -c 'SELECT 1;'"
 
-          rm -f deploy_key.pem
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f deploy_key.pem
 
       - name: Post Summary
         if: always()

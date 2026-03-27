@@ -18,6 +18,10 @@ jobs:
     timeout-minutes: 15
 
     steps:
+      - name: Install OCI CLI
+        run: |
+          pip install oci-cli
+
       - name: Check stack and retry if failed
         run: |
           STACK_ID="${{ secrets.OCI_STACK_ID }}"

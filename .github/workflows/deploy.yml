@@ -29,21 +29,19 @@ jobs:
           SSH_KEY: ${{ secrets.ORACLE_VM_SSH_KEY }}
           HOST: ${{ secrets.OCI_HOST }}
         run: |
-          # Write SSH key
           echo "$SSH_KEY" > deploy_key.pem
           chmod 600 deploy_key.pem
           SSH_OPTS="-o StrictHostKeyChecking=no -i deploy_key.pem"
 
-          # Upload JAR
-          scp $SSH_OPTS build/libs/provisioncalculator-0.0.1-SNAPSHOT.jar \
-            opc@$HOST:/opt/provisioncalculator/app.jar
+          JAR_FILE=$(ls build/libs/*.jar | head -1)
 
-          # Restart service
+          scp $SSH_OPTS "$JAR_FILE" opc@$HOST:/opt/provisioncalculator/app.jar
+
           ssh $SSH_OPTS opc@$HOST "sudo systemctl restart provisioncalculator"
 
-          # Wait and verify
           sleep 10
           ssh $SSH_OPTS opc@$HOST "systemctl is-active provisioncalculator"
 
-          # Cleanup
-          rm -f deploy_key.pem
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f deploy_key.pem
