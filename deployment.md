@@ -45,21 +45,21 @@ GitHub Actions Workflow
 | Outbound Traffic | 10 TB/month | minimal |
 | Object Storage | 20 GB | not needed |
 
-## Prerequisites
+## Progress Checklist
 
-- **Oracle Cloud account** — requires credit card for verification (not charged)
-- **GitHub repository** with Actions enabled
+- [x] Create Oracle Cloud Always Free account
+- [x] `application-oci.yml` — Spring profile for OCI (in repo)
+- [x] `.github/workflows/deploy.yml` — Release-triggered deployment (in repo)
+- [ ] Create ARM VM instance (Step 1 below)
+- [ ] Configure security rules (Step 2)
+- [ ] Install Java 21 + PostgreSQL on VM (Step 3)
+- [ ] Create systemd service (Step 4)
+- [ ] Add GitHub secrets `OCI_HOST` + `OCI_SSH_KEY` (Step 5)
+- [ ] Create first GitHub Release to trigger deployment
 
 ## Step-by-Step Setup
 
-### 1. Create Oracle Cloud Account
-
-1. Go to [cloud.oracle.com](https://cloud.oracle.com) and sign up
-2. Choose a **Home Region** with ARM capacity (Frankfurt, Amsterdam, or London work well)
-3. Provide credit card for verification — it will **not be charged**
-4. Your account starts as "Always Free" — you must explicitly upgrade to paid to incur costs
-
-### 2. Create the VM Instance (One-Time)
+### 1. Create the VM Instance (One-Time)
 
 1. Go to **Compute > Instances > Create Instance**
 2. Configure:
@@ -146,27 +146,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable provisioncalculator
 ```
 
-### 6. Add OCI Spring Profile
-
-Create `src/main/resources/application-oci.yml` in the project:
-
-```yaml
-spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/provisioncalculator
-    username: provision
-    password: ${DB_PASSWORD:provision_secret}
-  jpa:
-    hibernate:
-      ddl-auto: validate
-  flyway:
-    enabled: true
-
-server:
-  port: 8080
-```
-
-### 7. Store Secrets in GitHub
+### 5. Store Secrets in GitHub
 
 Go to **Settings > Secrets and variables > Actions** in your GitHub repo and add:
 
@@ -175,60 +155,14 @@ Go to **Settings > Secrets and variables > Actions** in your GitHub repo and add
 | `OCI_HOST` | Your VM's public IP address |
 | `OCI_SSH_KEY` | Contents of your private SSH key |
 
-### 8. GitHub Actions Deployment Workflow
+### Files Already in the Repository
 
-Create `.github/workflows/deploy.yml`:
+These files are ready to use — no manual creation needed:
 
-```yaml
-name: Deploy on Release
-
-on:
-  release:
-    types: [published]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Build JAR
-        run: gradle bootJar
-
-      - name: Deploy to OCI
-        env:
-          SSH_KEY: ${{ secrets.OCI_SSH_KEY }}
-          HOST: ${{ secrets.OCI_HOST }}
-        run: |
-          # Write SSH key
-          echo "$SSH_KEY" > deploy_key.pem
-          chmod 600 deploy_key.pem
-          SSH_OPTS="-o StrictHostKeyChecking=no -i deploy_key.pem"
-
-          # Upload JAR
-          scp $SSH_OPTS build/libs/provisioncalculator-0.0.1-SNAPSHOT.jar \
-            opc@$HOST:/opt/provisioncalculator/app.jar
-
-          # Restart service
-          ssh $SSH_OPTS opc@$HOST "sudo systemctl restart provisioncalculator"
-
-          # Wait and verify
-          sleep 10
-          ssh $SSH_OPTS opc@$HOST "systemctl is-active provisioncalculator"
-
-          # Cleanup
-          rm -f deploy_key.pem
-```
+| File | Purpose |
+|------|---------|
+| `src/main/resources/application-oci.yml` | Spring profile for OCI (PostgreSQL on localhost, Flyway enabled) |
+| `.github/workflows/deploy.yml` | GitHub Actions workflow triggered on Release publish |
 
 ## Deployment Workflow
 
