@@ -20,10 +20,17 @@ class DepthBasedCommissionRule : CommissionRule {
         val results = mutableListOf<CommissionLineItem>()
         val maxDepth = context.ratesByDepth.keys.maxOrNull() ?: return results
 
+        // Log unknown buyers once in aggregate instead of per-purchase to avoid log spam
+        val unknownBuyers = context.purchases
+            .filter { it.buyerCustomerId !in context.treeMap }
+            .map { it.buyerCustomerId }
+        if (unknownBuyers.isNotEmpty()) {
+            log.warn("Settlement {}: {} purchases from {} distinct buyers not in tree — skipping commission",
+                context.settlement.id, unknownBuyers.size, unknownBuyers.distinct().size)
+        }
+
         for (purchase in context.purchases) {
             if (purchase.buyerCustomerId !in context.treeMap) {
-                log.warn("Buyer '{}' (purchase {}) not found in tree for settlement {} — skipping commission",
-                    purchase.buyerCustomerId, purchase.id, context.settlement.id)
                 continue
             }
             var currentCustomerId: String? = context.treeMap[purchase.buyerCustomerId]?.parentCustomerId

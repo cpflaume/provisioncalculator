@@ -54,7 +54,8 @@ class SettlementService(
         while (pending.isNotEmpty()) {
             val batch = pending.filter { it.parentCustomerId == null || it.parentCustomerId in nodeMap }
             if (batch.isEmpty()) {
-                throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unable to resolve tree node order")
+                throw ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Unable to resolve tree node order — possible cycle or disconnected nodes in: ${pending.map { it.customerId }}")
             }
             for (req in batch) {
                 val parentNode = req.parentCustomerId?.let { nodeMap[it] }
