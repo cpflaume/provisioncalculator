@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.provisions"
-version = "0.0.1-SNAPSHOT"
+version = System.getenv("RELEASE_VERSION") ?: "0.0.1-SNAPSHOT"
 
 java {
     toolchain {
