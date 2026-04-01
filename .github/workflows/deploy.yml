@@ -1,28 +1,23 @@
 name: Deploy on Release
 
 on:
-  release:
-    types: [published]
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Build JAR
-        run: gradle bootJar
+      - name: Download JAR from Release
+        run: |
+          TAG="${{ github.event.workflow_run.head_branch }}"
+          gh release download "$TAG" --pattern "*.jar" --dir . --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy to OCI
         env:
@@ -33,7 +28,7 @@ jobs:
           chmod 600 deploy_key.pem
           SSH_OPTS="-o StrictHostKeyChecking=no -i deploy_key.pem"
 
-          JAR_FILE=$(ls build/libs/*.jar | head -1)
+          JAR_FILE=$(ls *.jar | head -1)
 
           scp $SSH_OPTS "$JAR_FILE" opc@$HOST:/opt/provisioncalculator/app.jar
 
