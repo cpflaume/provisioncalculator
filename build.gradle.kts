@@ -29,13 +29,13 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6")
     runtimeOnly("org.postgresql:postgresql")
+    runtimeOnly("com.h2database:h2")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:postgresql")
     testImplementation("io.mockk:mockk:1.13.13")
     testImplementation("com.ninja-squad:springmockk:4.0.2")
-    testRuntimeOnly("com.h2database:h2")
 }
 
 kotlin {
