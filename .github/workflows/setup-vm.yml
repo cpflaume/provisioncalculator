@@ -25,7 +25,7 @@ jobs:
           ssh $SSH_OPTS opc@$HOST "chmod +x /tmp/setup-oci-vm.sh && /tmp/setup-oci-vm.sh"
 
           echo "--- Verification ---"
-          ssh $SSH_OPTS opc@$HOST "java -version && sudo -u postgres psql -d provisioncalculator -c 'SELECT 1;'"
+          ssh $SSH_OPTS opc@$HOST "java -version && sudo -u postgres psql -d provisioncalculator -c 'SELECT 1;' && systemctl is-active caddy"
 
       - name: Cleanup SSH key
         if: always()
@@ -41,10 +41,14 @@ jobs:
           |-----------|--------|
           | Java 21 | Installed |
           | PostgreSQL | Installed + DB created |
-          | Firewall (8080) | Opened |
-          | systemd service | Created + enabled |
+          | Caddy | Installed + enabled |
+          | Firewall (80, 443) | Opened |
+          | systemd services | BE + Caddy enabled |
 
           **Next steps:**
-          1. Add OCI Security Rule: open port 8080 (TCP) in VCN Security List
-          2. Create a GitHub Release to trigger first deployment
+          1. Ensure DNS A record for `provisioncalculator.copf-demo.de` points to VM IP
+          2. Add OCI Security Rule: open ports 80 and 443 (TCP) in VCN Security List
+          3. Add `ORACLE_VM_SSH_KEY` and `OCI_HOST` secrets to `provisioncalculator-fe` repo
+          4. Create a GitHub Release (backend) to trigger first BE deployment
+          5. Push to main (frontend) to trigger first FE deployment
           EOF
