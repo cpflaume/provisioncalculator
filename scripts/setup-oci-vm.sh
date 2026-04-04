@@ -69,6 +69,7 @@ echo "[6/8] Installing Caddy..."
 sudo dnf install -y 'dnf-command(copr)'
 sudo dnf copr enable -y @caddy/caddy
 sudo dnf install -y caddy
+sudo setcap 'cap_net_bind_service=+ep' /usr/bin/caddy
 echo ""
 
 # --- Frontend directory ---
