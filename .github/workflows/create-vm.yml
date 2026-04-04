@@ -2,8 +2,8 @@ name: Retry OCI Stack
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 * * * *'
+  # schedule:
+  #   - cron: '0 * * * *'
 
 env:
   OCI_CLI_TENANCY: ${{ secrets.OCI_CLI_TENANCY }}
