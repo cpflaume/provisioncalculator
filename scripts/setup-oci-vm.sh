@@ -13,9 +13,9 @@ echo ""
 # --- PostgreSQL ---
 echo "[2/8] Installing PostgreSQL..."
 sudo dnf install -y postgresql-server
-if [ -z "$(ls -A /var/lib/pgsql/data 2>/dev/null)" ]; then
+if [ -z "$(sudo ls -A /var/lib/pgsql/data 2>/dev/null)" ]; then
     echo "run initdb"
-    ls /var/lib/pgsql/data 2>/dev/null || echo "Directory missing"
+    sudo ls /var/lib/pgsql/data 2>/dev/null || echo "Directory missing"
     sudo postgresql-setup --initdb
 fi
 sudo systemctl enable postgresql
