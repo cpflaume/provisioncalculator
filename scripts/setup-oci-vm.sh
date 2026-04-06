@@ -13,7 +13,7 @@ echo ""
 # --- PostgreSQL ---
 echo "[2/8] Installing PostgreSQL..."
 sudo dnf install -y postgresql-server
-if [ ! -d /var/lib/pgsql/data/base ]; then
+if [ ! -f /var/lib/pgsql/data/PG_VERSION ]; then
     sudo postgresql-setup --initdb
 fi
 sudo systemctl enable postgresql
