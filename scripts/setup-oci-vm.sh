@@ -73,15 +73,28 @@ sudo setcap 'cap_net_bind_service=+ep' /usr/bin/caddy
 echo ""
 
 # --- Frontend directory ---
-echo "[7/8] Creating frontend directory..."
+echo "[7/9] Creating frontend directory..."
 sudo mkdir -p /var/www/provisioncalculator-fe
 sudo chown opc:opc /var/www/provisioncalculator-fe
 echo ""
 
+# --- SELinux context for web files ---
+echo "[8/9] Configuring SELinux for web directory..."
+if command -v getenforce &>/dev/null && [ "$(getenforce)" != "Disabled" ]; then
+    sudo semanage fcontext -a -t httpd_sys_content_t "/var/www/provisioncalculator-fe(/.*)?" 2>/dev/null || true
+    sudo restorecon -Rv /var/www/provisioncalculator-fe
+    echo "SELinux context set to httpd_sys_content_t"
+else
+    echo "SELinux not active, skipping."
+fi
+echo ""
+
 # --- Caddyfile ---
-echo "[8/8] Configuring Caddy..."
+echo "[9/9] Configuring Caddy..."
 sudo tee /etc/caddy/Caddyfile > /dev/null <<'CADDYFILE'
 provisioncalculator.copf-demo.de {
+    encode gzip
+
     handle /api/* {
         reverse_proxy localhost:8080
     }
@@ -91,8 +104,6 @@ provisioncalculator.copf-demo.de {
         try_files {path} /index.html
         file_server
     }
-
-    encode gzip
 }
 CADDYFILE
 
