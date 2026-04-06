@@ -13,13 +13,17 @@ echo ""
 # --- PostgreSQL ---
 echo "[2/8] Installing PostgreSQL..."
 sudo dnf install -y postgresql-server
-sudo postgresql-setup --initdb
+if [ ! -d /var/lib/pgsql/data/base ]; then
+    sudo postgresql-setup --initdb
+fi
 sudo systemctl enable postgresql
 sudo systemctl start postgresql
 
-# Create database and user
-sudo -u postgres psql -c "CREATE USER provision WITH PASSWORD 'provision_secret';"
-sudo -u postgres psql -c "CREATE DATABASE provisioncalculator OWNER provision;"
+# Create database and user (idempotent: skip if already exists)
+sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='provision'" | grep -q 1 \
+    || sudo -u postgres psql -c "CREATE USER provision WITH PASSWORD 'provision_secret';"
+sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='provisioncalculator'" | grep -q 1 \
+    || sudo -u postgres psql -c "CREATE DATABASE provisioncalculator OWNER provision;"
 
 # Switch from ident to md5 authentication for local connections
 sudo sed -i 's/ident$/md5/' /var/lib/pgsql/data/pg_hba.conf
@@ -108,7 +112,7 @@ provisioncalculator.copf-demo.de {
 CADDYFILE
 
 sudo systemctl enable caddy
-sudo systemctl start caddy
+sudo systemctl restart caddy
 echo ""
 
 echo "=== Setup complete! ==="
