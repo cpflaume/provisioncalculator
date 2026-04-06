@@ -103,6 +103,14 @@ provisioncalculator.copf-demo.de {
         reverse_proxy localhost:8080
     }
 
+    handle /swagger-ui* {
+        reverse_proxy localhost:8080
+    }
+
+    handle /v3/api-docs* {
+        reverse_proxy localhost:8080
+    }
+
     handle {
         root * /var/www/provisioncalculator-fe
         try_files {path} /index.html

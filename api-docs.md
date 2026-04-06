@@ -6,11 +6,11 @@ This service provides interactive API documentation via **Swagger UI** (SpringDo
 
 Once the service is running:
 
-| Resource | URL |
-|----------|-----|
-| **Swagger UI** (interactive) | [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) |
-| OpenAPI JSON spec | [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs) |
-| OpenAPI YAML spec | [http://localhost:8080/v3/api-docs.yaml](http://localhost:8080/v3/api-docs.yaml) |
+| Resource | Local URL | Production URL |
+|----------|-----------|----------------|
+| **Swagger UI** (interactive) | [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) | [https://provisioncalculator.copf-demo.de/swagger-ui.html](https://provisioncalculator.copf-demo.de/swagger-ui.html) |
+| OpenAPI JSON spec | [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs) | [https://provisioncalculator.copf-demo.de/v3/api-docs](https://provisioncalculator.copf-demo.de/v3/api-docs) |
+| OpenAPI YAML spec | [http://localhost:8080/v3/api-docs.yaml](http://localhost:8080/v3/api-docs.yaml) | [https://provisioncalculator.copf-demo.de/v3/api-docs.yaml](https://provisioncalculator.copf-demo.de/v3/api-docs.yaml) |
 
 The Swagger UI lets you **try out every endpoint directly in the browser** — no curl or Postman needed.
 
