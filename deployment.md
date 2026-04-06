@@ -122,7 +122,7 @@ ssh -i your_key opc@<PUBLIC_IP>
 1. Create a GitHub Release (tag e.g. `v0.1.0`)
 2. The **Deploy on Release** workflow automatically builds the JAR and deploys it
 3. The app is accessible at `http://<PUBLIC_IP>:8080`
-4. Swagger UI is at `http://<PUBLIC_IP>:8080/swagger-ui.html`
+4. Swagger UI is at `https://provisioncalculator.copf-demo.de/swagger-ui.html`
 
 ## Deployment Workflow
 
