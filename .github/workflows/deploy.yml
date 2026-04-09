@@ -12,6 +12,8 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download JAR from Release
         run: |
           TAG="${{ github.event.workflow_run.head_branch }}"
@@ -31,6 +33,11 @@ jobs:
           JAR_FILE=$(ls *.jar | head -1)
 
           scp $SSH_OPTS "$JAR_FILE" opc@$HOST:/opt/provisioncalculator/app.jar
+
+          # Deploy Caddyfile to ensure routing config is up to date
+          scp $SSH_OPTS Caddyfile opc@$HOST:/tmp/Caddyfile
+          ssh $SSH_OPTS opc@$HOST "sudo mv /tmp/Caddyfile /etc/caddy/Caddyfile"
+          ssh $SSH_OPTS opc@$HOST "sudo systemctl reload caddy"
 
           ssh $SSH_OPTS opc@$HOST "sudo systemctl restart provisioncalculator"
 

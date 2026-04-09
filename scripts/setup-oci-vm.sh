@@ -94,9 +94,8 @@ fi
 echo ""
 
 # --- Caddyfile ---
-# NOTE: The canonical Caddyfile is maintained in the provisioncalculator-fe repo
-# and deployed automatically on every frontend release. This copy is for initial
-# VM setup only.
+# NOTE: The canonical Caddyfile is maintained at the repo root and deployed
+# automatically on every backend release. This copy is for initial VM setup only.
 echo "[9/9] Configuring Caddy..."
 sudo tee /etc/caddy/Caddyfile > /dev/null <<'CADDYFILE'
 provisioncalculator.copf-demo.de {
