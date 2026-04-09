@@ -4,19 +4,26 @@ on:
   workflow_run:
     workflows: ["Release"]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to deploy (e.g. v1.2.0)'
+        required: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Download JAR from Release
         run: |
-          TAG="${{ github.event.workflow_run.head_branch }}"
+          TAG="${{ inputs.tag || github.event.workflow_run.head_branch }}"
           gh release download "$TAG" --pattern "*.jar" --dir . --repo ${{ github.repository }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
