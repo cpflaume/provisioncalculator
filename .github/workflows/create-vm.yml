@@ -2,6 +2,15 @@ name: Retry OCI Stack
 
 on:
   workflow_dispatch:
+    inputs:
+      action:
+        description: 'Stack action to perform'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
   # schedule:
   #   - cron: '0 * * * *'
 
@@ -22,11 +31,15 @@ jobs:
         run: |
           pip install oci-cli
 
-      - name: Check stack and retry if failed
+      - name: Check stack and run action
         run: |
           STACK_ID="${{ secrets.OCI_STACK_ID }}"
+          # Default to apply for scheduled triggers
+          ACTION="${{ inputs.action || 'apply' }}"
 
-          # Get last job status
+          echo "Action: $ACTION"
+
+          # Get last job status and type
           LAST_STATUS=$(oci resource-manager job list \
             --stack-id "$STACK_ID" \
             --sort-by TIMECREATED \
@@ -35,27 +48,44 @@ jobs:
             --query 'data[0]."lifecycle-state"' \
             --raw-output)
 
-          echo "Last job status: $LAST_STATUS"
+          LAST_OPERATION=$(oci resource-manager job list \
+            --stack-id "$STACK_ID" \
+            --sort-by TIMECREATED \
+            --sort-order DESC \
+            --limit 1 \
+            --query 'data[0].operation' \
+            --raw-output)
 
-          if [ "$LAST_STATUS" = "SUCCEEDED" ]; then
-            echo "## Stack OK — nothing to do" >> $GITHUB_STEP_SUMMARY
-            exit 0
-          fi
+          echo "Last job status: $LAST_STATUS (operation: $LAST_OPERATION)"
 
           if [ "$LAST_STATUS" = "IN_PROGRESS" ]; then
             echo "## Job already running — skipping" >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
 
-          # Status is FAILED or other — trigger apply
-          echo "Triggering apply..."
-          JOB_ID=$(oci resource-manager job create-apply-job \
-            --stack-id "$STACK_ID" \
-            --execution-plan-strategy AUTO_APPROVED \
-            --query 'data.id' \
-            --raw-output)
+          # Only skip apply if the last apply already succeeded
+          if [ "$ACTION" = "apply" ] && [ "$LAST_STATUS" = "SUCCEEDED" ] && [ "$LAST_OPERATION" = "APPLY" ]; then
+            echo "## Stack OK — nothing to do" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
 
-          echo "Apply job started: $JOB_ID"
+          # Trigger the requested action
+          echo "Triggering $ACTION..."
+          if [ "$ACTION" = "destroy" ]; then
+            JOB_ID=$(oci resource-manager job create-destroy-job \
+              --stack-id "$STACK_ID" \
+              --execution-plan-strategy AUTO_APPROVED \
+              --query 'data.id' \
+              --raw-output)
+          else
+            JOB_ID=$(oci resource-manager job create-apply-job \
+              --stack-id "$STACK_ID" \
+              --execution-plan-strategy AUTO_APPROVED \
+              --query 'data.id' \
+              --raw-output)
+          fi
+
+          echo "$ACTION job started: $JOB_ID"
 
           # Wait for result
           for i in $(seq 1 40); do
@@ -67,11 +97,16 @@ jobs:
             echo "  [$i] $STATUS"
 
             if [ "$STATUS" = "SUCCEEDED" ]; then
-              echo "## VM Created" >> $GITHUB_STEP_SUMMARY
-              echo "Stack apply succeeded. Check OCI Console for the public IP." >> $GITHUB_STEP_SUMMARY
+              if [ "$ACTION" = "destroy" ]; then
+                echo "## VM Destroyed" >> $GITHUB_STEP_SUMMARY
+                echo "Stack destroy succeeded." >> $GITHUB_STEP_SUMMARY
+              else
+                echo "## VM Created" >> $GITHUB_STEP_SUMMARY
+                echo "Stack apply succeeded. Check OCI Console for the public IP." >> $GITHUB_STEP_SUMMARY
+              fi
               exit 0
             elif [ "$STATUS" = "FAILED" ]; then
-              echo "## Failed — will retry next schedule" >> $GITHUB_STEP_SUMMARY
+              echo "## $ACTION Failed" >> $GITHUB_STEP_SUMMARY
               echo "Job: \`$JOB_ID\`" >> $GITHUB_STEP_SUMMARY
               exit 1
             fi
