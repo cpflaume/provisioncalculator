@@ -39,7 +39,7 @@ jobs:
 
           echo "Action: $ACTION"
 
-          # Get last job status
+          # Get last job status and type
           LAST_STATUS=$(oci resource-manager job list \
             --stack-id "$STACK_ID" \
             --sort-by TIMECREATED \
@@ -48,14 +48,23 @@ jobs:
             --query 'data[0]."lifecycle-state"' \
             --raw-output)
 
-          echo "Last job status: $LAST_STATUS"
+          LAST_OPERATION=$(oci resource-manager job list \
+            --stack-id "$STACK_ID" \
+            --sort-by TIMECREATED \
+            --sort-order DESC \
+            --limit 1 \
+            --query 'data[0].operation' \
+            --raw-output)
+
+          echo "Last job status: $LAST_STATUS (operation: $LAST_OPERATION)"
 
           if [ "$LAST_STATUS" = "IN_PROGRESS" ]; then
             echo "## Job already running — skipping" >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
 
-          if [ "$ACTION" = "apply" ] && [ "$LAST_STATUS" = "SUCCEEDED" ]; then
+          # Only skip apply if the last apply already succeeded
+          if [ "$ACTION" = "apply" ] && [ "$LAST_STATUS" = "SUCCEEDED" ] && [ "$LAST_OPERATION" = "APPLY" ]; then
             echo "## Stack OK — nothing to do" >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
