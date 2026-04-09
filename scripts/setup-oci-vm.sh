@@ -94,32 +94,9 @@ fi
 echo ""
 
 # --- Caddyfile ---
-# NOTE: The canonical Caddyfile is maintained at the repo root and deployed
-# automatically on every backend release. This copy is for initial VM setup only.
 echo "[9/9] Configuring Caddy..."
-sudo tee /etc/caddy/Caddyfile > /dev/null <<'CADDYFILE'
-provisioncalculator.copf-demo.de {
-    encode gzip
-
-    handle /api/* {
-        reverse_proxy localhost:8080
-    }
-
-    handle /swagger-ui* {
-        reverse_proxy localhost:8080
-    }
-
-    handle /v3/api-docs* {
-        reverse_proxy localhost:8080
-    }
-
-    handle {
-        root * /var/www/provisioncalculator-fe
-        try_files {path} /index.html
-        file_server
-    }
-}
-CADDYFILE
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+sudo cp "$SCRIPT_DIR/../Caddyfile" /etc/caddy/Caddyfile
 
 sudo systemctl enable caddy
 sudo systemctl restart caddy
