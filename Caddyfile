@@ -1,0 +1,21 @@
+provisioncalculator.copf-demo.de {
+    encode gzip
+
+    handle /api/* {
+        reverse_proxy localhost:8080
+    }
+
+    handle /swagger-ui* {
+        reverse_proxy localhost:8080
+    }
+
+    handle /v3/api-docs* {
+        reverse_proxy localhost:8080
+    }
+
+    handle {
+        root * /var/www/provisioncalculator-fe
+        try_files {path} /index.html
+        file_server
+    }
+}
