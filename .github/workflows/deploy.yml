@@ -43,7 +43,7 @@ jobs:
 
           # Deploy Caddyfile to ensure routing config is up to date
           scp $SSH_OPTS Caddyfile opc@$HOST:/tmp/Caddyfile
-          ssh $SSH_OPTS opc@$HOST "sudo mv /tmp/Caddyfile /etc/caddy/Caddyfile"
+          ssh $SSH_OPTS opc@$HOST "sudo mv /tmp/Caddyfile /etc/caddy/Caddyfile && sudo chown root:root /etc/caddy/Caddyfile && sudo restorecon -v /etc/caddy/Caddyfile"
           ssh $SSH_OPTS opc@$HOST "sudo systemctl reload caddy"
 
           ssh $SSH_OPTS opc@$HOST "sudo systemctl restart provisioncalculator"
