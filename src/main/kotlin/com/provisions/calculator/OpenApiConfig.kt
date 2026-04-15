@@ -50,7 +50,8 @@ class OpenApiConfig {
             listOf(
                 Tag().name("Settlements").description("Create and manage settlement periods"),
                 Tag().name("Purchases").description("Submit and list purchases"),
-                Tag().name("Calculation").description("Calculate commissions, view results and audit trail")
+                Tag().name("Calculation").description("Calculate commissions, view results and audit trail"),
+                Tag().name("Metrics").description("KPI overview and settlement analysis with anomaly detection")
             )
         )
 }
