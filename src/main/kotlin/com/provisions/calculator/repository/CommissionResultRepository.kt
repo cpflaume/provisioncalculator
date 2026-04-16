@@ -21,10 +21,15 @@ interface CommissionResultRepository : JpaRepository<CommissionResult, Long> {
             FROM commission_result cr
             WHERE cr.tenant_id = :tenantId
             AND cr.calculation_id IN (
-                SELECT DISTINCT ON (c.settlement_id) c.id
+                SELECT c.id
                 FROM calculation c
                 WHERE c.tenant_id = :tenantId
-                ORDER BY c.settlement_id, c.calculated_at DESC
+                AND c.calculated_at = (
+                    SELECT MAX(c2.calculated_at)
+                    FROM calculation c2
+                    WHERE c2.tenant_id = :tenantId
+                    AND c2.settlement_id = c.settlement_id
+                )
             )
         """,
         nativeQuery = true
