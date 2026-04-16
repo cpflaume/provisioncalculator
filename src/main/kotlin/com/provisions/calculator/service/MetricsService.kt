@@ -3,11 +3,13 @@ package com.provisions.calculator.service
 import com.provisions.calculator.model.SettlementStatus
 import com.provisions.calculator.repository.*
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 import java.math.MathContext
 import java.math.RoundingMode
 
 @Service
+@Transactional(readOnly = true)
 class MetricsService(
     private val settlementRepository: SettlementRepository,
     private val purchaseRepository: PurchaseRepository,
