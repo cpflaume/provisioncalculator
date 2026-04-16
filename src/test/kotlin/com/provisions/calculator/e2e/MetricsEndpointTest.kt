@@ -192,6 +192,14 @@ class MetricsEndpointTest {
         val totalPurchaseVolume = BigDecimal(overview["totalPurchaseVolume"].asText())
         assertBigDecimalEquals(BigDecimal("1650.0000"), totalPurchaseVolume, "Total purchase volume")
 
+        // Approved purchase volume: only S1(650) is APPROVED
+        val approvedPurchaseVolume = BigDecimal(overview["approvedPurchaseVolume"].asText())
+        assertBigDecimalEquals(BigDecimal("650.0000"), approvedPurchaseVolume, "Approved purchase volume")
+
+        // Other purchase volume: S2(1000) + S3(0) = 1000
+        val otherPurchaseVolume = BigDecimal(overview["otherPurchaseVolume"].asText())
+        assertBigDecimalEquals(BigDecimal("1000.0000"), otherPurchaseVolume, "Other purchase volume")
+
         // Total commission: S1(44.00) + S2 commission
         // S2: E buys 500, D buys 500
         //   E(500): C gets 25(d1), B gets 15(d2), A gets 5(d3)
@@ -219,6 +227,8 @@ class MetricsEndpointTest {
         mockMvc.perform(get("$base/metrics/overview"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.totalPurchaseVolume").value(0))
+            .andExpect(jsonPath("$.approvedPurchaseVolume").value(0))
+            .andExpect(jsonPath("$.otherPurchaseVolume").value(0))
             .andExpect(jsonPath("$.totalCommission").value(0))
             .andExpect(jsonPath("$.averageCommissionRatePercent").value(0))
             .andExpect(jsonPath("$.settlementsByStatus").isEmpty)

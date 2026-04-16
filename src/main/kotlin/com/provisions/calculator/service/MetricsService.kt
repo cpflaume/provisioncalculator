@@ -23,6 +23,8 @@ class MetricsService(
             .associate { row -> (row[0] as SettlementStatus).name to (row[1] as Long).toInt() }
 
         val totalPurchaseVolume = purchaseRepository.sumAmountByTenantId(tenantId)
+        val approvedPurchaseVolume = purchaseRepository.sumAmountByTenantIdAndSettlementStatus(tenantId, SettlementStatus.APPROVED)
+        val otherPurchaseVolume = totalPurchaseVolume.subtract(approvedPurchaseVolume)
         val totalCommission = commissionResultRepository.sumAmountForLatestCalculationsByTenantId(tenantId)
 
         val commissionRate = if (totalPurchaseVolume > BigDecimal.ZERO) {
@@ -34,6 +36,8 @@ class MetricsService(
         return TenantOverview(
             settlementsByStatus = statusCounts,
             totalPurchaseVolume = totalPurchaseVolume,
+            approvedPurchaseVolume = approvedPurchaseVolume,
+            otherPurchaseVolume = otherPurchaseVolume,
             totalCommission = totalCommission,
             averageCommissionRatePercent = commissionRate
         )
@@ -220,6 +224,8 @@ class MetricsService(
     data class TenantOverview(
         val settlementsByStatus: Map<String, Int>,
         val totalPurchaseVolume: BigDecimal,
+        val approvedPurchaseVolume: BigDecimal,
+        val otherPurchaseVolume: BigDecimal,
         val totalCommission: BigDecimal,
         val averageCommissionRatePercent: BigDecimal
     )
