@@ -15,8 +15,9 @@ class User(
     @Column(name = "password_hash")
     var passwordHash: String? = null,
 
-    @Column(name = "password_salt")
-    var passwordSalt: String? = null,
+    // Reserved for future algorithm migration (PBKDF2/Argon2); BCrypt embeds salt in the hash string
+    @Column(name = "password_salt", insertable = false, updatable = false)
+    val passwordSalt: String? = null,
 
     @Column(name = "display_name", nullable = false)
     val displayName: String,

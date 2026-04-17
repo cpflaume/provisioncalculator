@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional
 
 @Component
 @ConditionalOnProperty(name = ["app.seed.admin.enabled"], havingValue = "true")
+@org.springframework.context.annotation.Profile("!prod")
 class TestDataSeeder(
     private val authService: AuthService,
     private val userRepository: UserRepository
