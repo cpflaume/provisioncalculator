@@ -1,0 +1,59 @@
+name: Debug Logs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Collect logs and service status
+        env:
+          SSH_KEY: ${{ secrets.ORACLE_VM_SSH_KEY }}
+          HOST: ${{ secrets.OCI_HOST }}
+        run: |
+          echo "$SSH_KEY" > deploy_key.pem
+          chmod 600 deploy_key.pem
+          SSH_OPTS="-o StrictHostKeyChecking=no -i deploy_key.pem"
+
+          ssh $SSH_OPTS opc@$HOST bash << 'REMOTE'
+          set -e
+
+          echo "================================================================"
+          echo "=== SERVICE STATUS"
+          echo "================================================================"
+          echo "--- provisioncalculator ---"
+          systemctl status provisioncalculator --no-pager || true
+          echo ""
+          echo "--- caddy ---"
+          systemctl status caddy --no-pager || true
+          echo ""
+          echo "--- postgresql ---"
+          systemctl status postgresql --no-pager || true
+
+          echo ""
+          echo "================================================================"
+          echo "=== JAVA APP LOGS (last 100 lines)"
+          echo "================================================================"
+          sudo journalctl -u provisioncalculator -n 100 --no-pager
+
+          echo ""
+          echo "================================================================"
+          echo "=== CADDY LOGS (last 100 lines)"
+          echo "================================================================"
+          sudo journalctl -u caddy -n 100 --no-pager
+
+          echo ""
+          echo "================================================================"
+          echo "=== DISK & MEMORY"
+          echo "================================================================"
+          df -h
+          echo ""
+          free -h
+          REMOTE
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f deploy_key.pem
