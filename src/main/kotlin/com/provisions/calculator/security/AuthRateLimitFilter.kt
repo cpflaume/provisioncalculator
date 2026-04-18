@@ -12,6 +12,9 @@ import java.util.concurrent.ConcurrentHashMap
 @Component
 class AuthRateLimitFilter(private val objectMapper: ObjectMapper) : OncePerRequestFilter() {
 
+    @org.springframework.beans.factory.annotation.Value("\${app.rate-limit.enabled:true}")
+    private var rateLimitEnabled: Boolean = true
+
     private data class WindowKey(val ip: String, val path: String)
 
     private val windows = ConcurrentHashMap<WindowKey, ArrayDeque<Long>>()
@@ -27,6 +30,11 @@ class AuthRateLimitFilter(private val objectMapper: ObjectMapper) : OncePerReque
         response: HttpServletResponse,
         filterChain: FilterChain
     ) {
+        if (!rateLimitEnabled) {
+            filterChain.doFilter(request, response)
+            return
+        }
+
         val path = request.requestURI
         val limit = if (request.method == HttpMethod.POST.name()) limits[path] else null
 
