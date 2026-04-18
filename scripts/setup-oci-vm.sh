@@ -45,13 +45,12 @@ sudo mkdir -p /opt/provisioncalculator
 sudo chown opc:opc /opt/provisioncalculator
 echo ""
 
-# --- Environment file (secrets written by deploy workflow) ---
+# --- Environment file (JWT_SECRET written by deploy workflow) ---
 echo "[5/8] Creating placeholder environment file..."
 if [ ! -f /etc/provisioncalculator.env ]; then
     sudo tee /etc/provisioncalculator.env > /dev/null <<'ENV'
-# Populated by the deploy workflow on first deployment
+# JWT_SECRET is populated by the deploy workflow
 JWT_SECRET=
-DB_PASSWORD=provision_secret
 ENV
     sudo chmod 600 /etc/provisioncalculator.env
 fi
