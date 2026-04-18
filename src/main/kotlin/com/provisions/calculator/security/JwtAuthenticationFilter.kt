@@ -40,7 +40,7 @@ class JwtAuthenticationFilter(
 
                 val userDetails = AppUserDetails(userId, email, null, role, currentStatus, tenantIds)
 
-                if (!userDetails.isEnabled) {
+                if (!userDetails.isAccountNonLocked()) {
                     filterChain.doFilter(request, response)
                     return
                 }
