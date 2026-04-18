@@ -2,7 +2,7 @@ name: Build & Test
 
 on:
   push:
-    branches: [ main, 'claude/**' ]
+    branches: [ main ]
     paths:
       - 'src/**'
       - 'build.gradle.kts'
