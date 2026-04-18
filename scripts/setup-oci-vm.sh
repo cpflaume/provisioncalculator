@@ -106,29 +106,11 @@ else
 fi
 echo ""
 
-# --- Caddyfile ---
+# --- Caddyfile (placeholder; overwritten on every deploy) ---
 echo "[10/10] Configuring Caddy..."
 sudo tee /etc/caddy/Caddyfile > /dev/null <<'CADDYFILE'
-provisioncalculator.copf-demo.de {
-    encode gzip
-
-    handle /api/* {
-        reverse_proxy localhost:8080
-    }
-
-    handle /swagger-ui* {
-        reverse_proxy localhost:8080
-    }
-
-    handle /v3/api-docs* {
-        reverse_proxy localhost:8080
-    }
-
-    handle {
-        root * /var/www/provisioncalculator-fe
-        try_files {path} /index.html
-        file_server
-    }
+:80 {
+    respond "Coming soon" 200
 }
 CADDYFILE
 
@@ -150,4 +132,4 @@ echo "  java -version"
 echo "  sudo -u postgres psql -d provisioncalculator -c 'SELECT 1;'"
 echo "  sudo systemctl status provisioncalculator"
 echo "  sudo systemctl status caddy"
-echo "  curl -s https://provisioncalculator.copf-demo.de/"
+echo "  curl -s http://provisioncalculator.copf-demo.de/"
