@@ -45,8 +45,20 @@ sudo mkdir -p /opt/provisioncalculator
 sudo chown opc:opc /opt/provisioncalculator
 echo ""
 
+# --- Environment file (secrets written by deploy/rotate-secrets workflows) ---
+echo "[5/8] Creating placeholder environment file..."
+if [ ! -f /etc/provisioncalculator.env ]; then
+    sudo tee /etc/provisioncalculator.env > /dev/null <<'ENV'
+# Populated by the deploy or rotate-secrets workflow
+JWT_SECRET=
+DB_PASSWORD=
+ENV
+    sudo chmod 600 /etc/provisioncalculator.env
+fi
+echo ""
+
 # --- systemd service ---
-echo "[5/8] Creating systemd service..."
+echo "[6/8] Creating systemd service..."
 sudo tee /etc/systemd/system/provisioncalculator.service > /dev/null <<'SERVICE'
 [Unit]
 Description=Provision Calculator Service
@@ -54,6 +66,7 @@ After=network.target postgresql.service
 
 [Service]
 User=opc
+EnvironmentFile=/etc/provisioncalculator.env
 ExecStart=/usr/bin/java -jar /opt/provisioncalculator/app.jar --spring.profiles.active=oci
 Restart=always
 RestartSec=5
@@ -69,7 +82,7 @@ sudo systemctl enable provisioncalculator
 echo ""
 
 # --- Caddy ---
-echo "[6/8] Installing Caddy..."
+echo "[7/9] Installing Caddy..."
 sudo dnf install -y 'dnf-command(copr)'
 sudo dnf copr enable -y @caddy/caddy
 sudo dnf install -y caddy
@@ -77,13 +90,13 @@ sudo setcap 'cap_net_bind_service=+ep' /usr/bin/caddy
 echo ""
 
 # --- Frontend directory ---
-echo "[7/9] Creating frontend directory..."
+echo "[8/9] Creating frontend directory..."
 sudo mkdir -p /var/www/provisioncalculator-fe
 sudo chown opc:opc /var/www/provisioncalculator-fe
 echo ""
 
 # --- SELinux context for web files ---
-echo "[8/9] Configuring SELinux for web directory..."
+echo "[9/9] Configuring SELinux for web directory..."
 if command -v getenforce &>/dev/null && [ "$(getenforce)" != "Disabled" ]; then
     sudo semanage fcontext -a -t httpd_sys_content_t "/var/www/provisioncalculator-fe(/.*)?" 2>/dev/null || true
     sudo restorecon -Rv /var/www/provisioncalculator-fe
@@ -107,7 +120,7 @@ echo ""
 echo "Next steps:"
 echo "  1. Ensure DNS A record for provisioncalculator.copf-demo.de points to this VM's public IP"
 echo "  2. Add OCI Security Rule: open ports 80 and 443 (TCP) for 0.0.0.0/0"
-echo "  3. Add GitHub Secrets (ORACLE_VM_SSH_KEY, OCI_HOST) to both repos"
+echo "  3. Add GitHub Secrets (ORACLE_VM_SSH_KEY, OCI_HOST, JWT_SECRET, DB_PASSWORD) to the backend repo"
 echo "  4. Create a GitHub Release (backend) to trigger first BE deployment"
 echo "  5. Push to main (frontend) to trigger first FE deployment"
 echo ""

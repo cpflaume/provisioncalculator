@@ -14,7 +14,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: >-
+    if: >
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
 
@@ -32,6 +32,8 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.ORACLE_VM_SSH_KEY }}
           HOST: ${{ secrets.OCI_HOST }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
           echo "$SSH_KEY" > deploy_key.pem
           chmod 600 deploy_key.pem
@@ -40,6 +42,12 @@ jobs:
           JAR_FILE=$(ls *.jar | head -1)
 
           scp $SSH_OPTS "$JAR_FILE" opc@$HOST:/opt/provisioncalculator/app.jar
+
+          # Update PostgreSQL user password first, then write the env file,
+          # so both are in sync before the service restarts.
+          ssh $SSH_OPTS opc@$HOST "sudo -u postgres psql -c \"ALTER USER provision WITH PASSWORD '${DB_PASSWORD}';\""
+
+          ssh $SSH_OPTS opc@$HOST "printf 'JWT_SECRET=%s\nDB_PASSWORD=%s\n' '${JWT_SECRET}' '${DB_PASSWORD}' | sudo tee /etc/provisioncalculator.env > /dev/null && sudo chmod 600 /etc/provisioncalculator.env"
 
           # Deploy Caddyfile to ensure routing config is up to date
           scp $SSH_OPTS Caddyfile opc@$HOST:/tmp/Caddyfile
