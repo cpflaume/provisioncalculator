@@ -45,12 +45,13 @@ sudo mkdir -p /opt/provisioncalculator
 sudo chown opc:opc /opt/provisioncalculator
 echo ""
 
-# --- Environment file (JWT_SECRET written by deploy workflow) ---
+# --- Environment file (secrets written by deploy/rotate-secrets workflows) ---
 echo "[5/8] Creating placeholder environment file..."
 if [ ! -f /etc/provisioncalculator.env ]; then
     sudo tee /etc/provisioncalculator.env > /dev/null <<'ENV'
-# JWT_SECRET is populated by the deploy workflow
+# Populated by the deploy or rotate-secrets workflow
 JWT_SECRET=
+DB_PASSWORD=
 ENV
     sudo chmod 600 /etc/provisioncalculator.env
 fi
@@ -119,7 +120,7 @@ echo ""
 echo "Next steps:"
 echo "  1. Ensure DNS A record for provisioncalculator.copf-demo.de points to this VM's public IP"
 echo "  2. Add OCI Security Rule: open ports 80 and 443 (TCP) for 0.0.0.0/0"
-echo "  3. Add GitHub Secrets (ORACLE_VM_SSH_KEY, OCI_HOST, JWT_SECRET) to the backend repo"
+echo "  3. Add GitHub Secrets (ORACLE_VM_SSH_KEY, OCI_HOST, JWT_SECRET, DB_PASSWORD) to the backend repo"
 echo "  4. Create a GitHub Release (backend) to trigger first BE deployment"
 echo "  5. Push to main (frontend) to trigger first FE deployment"
 echo ""

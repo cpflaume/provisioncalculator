@@ -33,6 +33,7 @@ jobs:
           SSH_KEY: ${{ secrets.ORACLE_VM_SSH_KEY }}
           HOST: ${{ secrets.OCI_HOST }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
           echo "$SSH_KEY" > deploy_key.pem
           chmod 600 deploy_key.pem
@@ -42,8 +43,8 @@ jobs:
 
           scp $SSH_OPTS "$JAR_FILE" opc@$HOST:/opt/provisioncalculator/app.jar
 
-          # Write JWT secret to environment file (readable only by root/service)
-          ssh $SSH_OPTS opc@$HOST "printf 'JWT_SECRET=%s\n' '${JWT_SECRET}' | sudo tee /etc/provisioncalculator.env > /dev/null && sudo chmod 600 /etc/provisioncalculator.env"
+          # Write secrets to environment file (readable only by root/service)
+          ssh $SSH_OPTS opc@$HOST "printf 'JWT_SECRET=%s\nDB_PASSWORD=%s\n' '${JWT_SECRET}' '${DB_PASSWORD}' | sudo tee /etc/provisioncalculator.env > /dev/null && sudo chmod 600 /etc/provisioncalculator.env"
 
           # Deploy Caddyfile to ensure routing config is up to date
           scp $SSH_OPTS Caddyfile opc@$HOST:/tmp/Caddyfile
