@@ -43,7 +43,10 @@ jobs:
 
           scp $SSH_OPTS "$JAR_FILE" opc@$HOST:/opt/provisioncalculator/app.jar
 
-          # Write secrets to environment file (readable only by root/service)
+          # Update PostgreSQL user password first, then write the env file,
+          # so both are in sync before the service restarts.
+          ssh $SSH_OPTS opc@$HOST "sudo -u postgres psql -c \"ALTER USER provision WITH PASSWORD '${DB_PASSWORD}';\""
+
           ssh $SSH_OPTS opc@$HOST "printf 'JWT_SECRET=%s\nDB_PASSWORD=%s\n' '${JWT_SECRET}' '${DB_PASSWORD}' | sudo tee /etc/provisioncalculator.env > /dev/null && sudo chmod 600 /etc/provisioncalculator.env"
 
           # Deploy Caddyfile to ensure routing config is up to date
