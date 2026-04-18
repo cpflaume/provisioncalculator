@@ -21,3 +21,7 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+
+app:
+  cors:
+    allowed-origins: https://provisioncalculator.copf-demo.de
