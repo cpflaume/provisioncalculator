@@ -1,0 +1,66 @@
+name: Promote User to Admin
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: 'User email to promote to ADMIN'
+        required: true
+        default: 'constantin.pflaume@gmail.com'
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Run DB query on OCI VM
+        env:
+          SSH_KEY: ${{ secrets.ORACLE_VM_SSH_KEY }}
+          HOST: ${{ secrets.OCI_HOST }}
+          EMAIL: ${{ github.event.inputs.email }}
+        run: |
+          echo "$SSH_KEY" > deploy_key.pem
+          chmod 600 deploy_key.pem
+          SSH_OPTS="-o StrictHostKeyChecking=no -i deploy_key.pem"
+
+          ssh $SSH_OPTS opc@$HOST \
+            "sudo -u postgres psql -d provisioncalculator -c \"UPDATE users SET role = 'ADMIN', status = 'ACTIVE' WHERE email = '$EMAIL';\""
+
+      - name: Verify update
+        env:
+          SSH_KEY: ${{ secrets.ORACLE_VM_SSH_KEY }}
+          HOST: ${{ secrets.OCI_HOST }}
+          EMAIL: ${{ github.event.inputs.email }}
+        run: |
+          SSH_OPTS="-o StrictHostKeyChecking=no -i deploy_key.pem"
+
+          RESULT=$(ssh $SSH_OPTS opc@$HOST \
+            "sudo -u postgres psql -d provisioncalculator -t -c \"SELECT email, role, status FROM users WHERE email = '$EMAIL';\"")
+          echo "User record: $RESULT"
+
+          if echo "$RESULT" | grep -q "ADMIN"; then
+            echo "SUCCESS: User promoted to ADMIN"
+          else
+            echo "WARNING: User not found or update may have failed"
+            exit 1
+          fi
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f deploy_key.pem
+
+      - name: Post Summary
+        if: always()
+        env:
+          EMAIL: ${{ github.event.inputs.email }}
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          ## Promote User to Admin
+
+          | Field | Value |
+          |-------|-------|
+          | Email | $EMAIL |
+          | Role  | ADMIN |
+          | Status | ACTIVE |
+          EOF
