@@ -16,3 +16,7 @@ spring:
         order_updates: true
   flyway:
     enabled: false
+
+app:
+  rate-limit:
+    enabled: false
