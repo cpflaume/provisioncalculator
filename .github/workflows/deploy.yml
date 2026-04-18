@@ -45,7 +45,7 @@ jobs:
 
           # Update PostgreSQL user password first, then write the env file,
           # so both are in sync before the service restarts.
-          ssh $SSH_OPTS opc@$HOST "sudo -u postgres psql -c \"ALTER USER provision WITH PASSWORD '${DB_PASSWORD}';\""
+          ssh $SSH_OPTS opc@$HOST "cd /tmp && sudo -u postgres psql -c \"ALTER USER provision WITH PASSWORD '${DB_PASSWORD}';\""
 
           ssh $SSH_OPTS opc@$HOST "printf 'JWT_SECRET=%s\nDB_PASSWORD=%s\n' '${JWT_SECRET}' '${DB_PASSWORD}' | sudo tee /etc/provisioncalculator.env > /dev/null && sudo chmod 600 /etc/provisioncalculator.env"
 
@@ -56,8 +56,18 @@ jobs:
 
           ssh $SSH_OPTS opc@$HOST "sudo systemctl restart provisioncalculator"
 
-          sleep 10
-          ssh $SSH_OPTS opc@$HOST "systemctl is-active provisioncalculator"
+          # Wait up to 60s for the service to become active
+          ssh $SSH_OPTS opc@$HOST "
+            for i in \$(seq 1 12); do
+              status=\$(systemctl is-active provisioncalculator)
+              echo \"Attempt \$i: \$status\"
+              [ \"\$status\" = \"active\" ] && exit 0
+              [ \"\$status\" = \"failed\" ] && exit 1
+              sleep 5
+            done
+            echo 'Service did not become active within 60s'
+            exit 1
+          "
 
       - name: Cleanup SSH key
         if: always()
