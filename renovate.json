@@ -4,16 +4,20 @@
   "schedule": ["on monday"],
   "prConcurrentLimit": 5,
   "labels": ["dependencies"],
+  "vulnerabilityAlerts": {
+    "labels": ["security"]
+  },
   "packageRules": [
     {
       "matchManagers": ["gradle", "gradle-wrapper"],
-      "groupName": "gradle dependencies",
+      "groupName": "Gradle dependencies",
       "groupSlug": "gradle"
     },
     {
-      "matchDepTypes": ["devDependencies"],
-      "groupName": "dev dependencies",
-      "automerge": false
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "groupSlug": "github-actions",
+      "automerge": true
     }
   ]
 }
