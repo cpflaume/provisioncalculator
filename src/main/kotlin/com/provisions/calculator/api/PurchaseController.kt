@@ -35,6 +35,7 @@ If the settlement was previously CALCULATED, submitting new purchases resets it 
         return PurchaseSubmitResponse(
             settlementId = settlementId,
             accepted = purchases.size,
+            ids = purchases.map { it.id },
             submittedAt = LocalDateTime.now()
         )
     }
@@ -58,8 +59,19 @@ If the settlement was previously CALCULATED, submitting new purchases resets it 
             size = page.size
         )
     }
+
+    @DeleteMapping("/{purchaseId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Delete a purchase")
+    fun delete(
+        @Parameter(description = "Tenant identifier", example = "acme") @PathVariable tenantId: String,
+        @PathVariable settlementId: Long,
+        @PathVariable purchaseId: Long
+    ) {
+        purchaseService.deletePurchase(tenantId, settlementId, purchaseId)
+    }
 }
 
-data class PurchaseSubmitResponse(val settlementId: Long, val accepted: Int, val submittedAt: LocalDateTime)
+data class PurchaseSubmitResponse(val settlementId: Long, val accepted: Int, val ids: List<Long>, val submittedAt: LocalDateTime)
 data class PurchaseResponse(val id: Long, val buyerCustomerId: String, val amount: BigDecimal, val purchasedAt: LocalDateTime)
 data class PurchasePageResponse(val content: List<PurchaseResponse>, val totalElements: Long, val totalPages: Int, val page: Int, val size: Int)
