@@ -109,7 +109,7 @@ echo ""
 # --- Caddyfile (placeholder; overwritten on every deploy) ---
 echo "[10/10] Configuring Caddy..."
 sudo tee /etc/caddy/Caddyfile > /dev/null <<'CADDYFILE'
-:80 {
+provisioncalculator.copf-demo.de {
     respond "Coming soon" 200
 }
 CADDYFILE
@@ -132,4 +132,4 @@ echo "  java -version"
 echo "  sudo -u postgres psql -d provisioncalculator -c 'SELECT 1;'"
 echo "  sudo systemctl status provisioncalculator"
 echo "  sudo systemctl status caddy"
-echo "  curl -s http://provisioncalculator.copf-demo.de/"
+echo "  curl -s https://provisioncalculator.copf-demo.de/"
