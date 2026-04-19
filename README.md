@@ -2,6 +2,12 @@
 
 A REST API for calculating multi-level commission (provision) settlements across a customer hierarchy tree. Built with Kotlin and Spring Boot.
 
+## Live Demo
+
+Check it out at **https://provisioncalculator.copf-demo.de**
+
+> The initial API product was a little boring on its own, so a full frontend was added on top — tree visualisation, charts, settlement lifecycle management and all.
+
 ## What it does
 
 - Models a customer hierarchy as a tree
@@ -38,3 +44,7 @@ Use `acme` as the `tenantId` for testing. See [api-docs.md](api-docs.md) for a f
 ## License
 
 MIT — see [LICENSE](LICENSE)
+
+---
+
+> Disclaimer: This entire project was coded from a mobile phone using [Claude Code](https://claude.ai/code). It was good fun.
