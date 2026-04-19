@@ -6,7 +6,6 @@ on:
       email:
         description: 'User email to promote to ADMIN'
         required: true
-        default: 'constantin.pflaume@gmail.com'
 
 jobs:
   promote:
@@ -25,7 +24,7 @@ jobs:
           SSH_OPTS="-o StrictHostKeyChecking=no -i deploy_key.pem"
 
           ssh $SSH_OPTS opc@$HOST \
-            "sudo -u postgres psql -d provisioncalculator -c \"UPDATE users SET role = 'ADMIN', status = 'ACTIVE' WHERE email = '$EMAIL';\""
+            "sudo -u postgres psql -d provisioncalculator -v email=\"$EMAIL\" -c \"UPDATE users SET role = 'ADMIN', status = 'ACTIVE' WHERE email = :'email';\""
 
       - name: Verify update
         env:
@@ -36,7 +35,7 @@ jobs:
           SSH_OPTS="-o StrictHostKeyChecking=no -i deploy_key.pem"
 
           RESULT=$(ssh $SSH_OPTS opc@$HOST \
-            "sudo -u postgres psql -d provisioncalculator -t -c \"SELECT email, role, status FROM users WHERE email = '$EMAIL';\"")
+            "sudo -u postgres psql -d provisioncalculator -t -v email=\"$EMAIL\" -c \"SELECT email, role, status FROM users WHERE email = :'email';\"")
           echo "User record: $RESULT"
 
           if echo "$RESULT" | grep -q "ADMIN"; then
