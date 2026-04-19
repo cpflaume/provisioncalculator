@@ -1,6 +1,6 @@
 package com.provisions.calculator.security
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.beans.factory.annotation.Value
@@ -25,7 +25,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val authRateLimitFilter: AuthRateLimitFilter,
-    private val objectMapper: ObjectMapper,
+    private val objectMapper: JsonMapper,
     @Value("\${app.cors.allowed-origins}") private val allowedOrigins: String
 ) {
 

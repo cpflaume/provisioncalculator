@@ -1,6 +1,6 @@
 package com.provisions.calculator.api
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import com.provisions.calculator.api.request.CommissionRateRequest
 import com.provisions.calculator.api.request.ConfigureSettingsRequest
 import com.provisions.calculator.api.request.CreateSettlementRequest
@@ -9,7 +9,8 @@ import com.provisions.calculator.api.request.SubmitPurchasesRequest
 import com.provisions.calculator.api.request.TreeNodeRequest
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
+import com.provisions.calculator.MockMvcTestConfig
+import org.springframework.context.annotation.Import
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.MediaType
 import org.springframework.security.test.context.support.WithMockUser
@@ -22,14 +23,14 @@ import java.math.BigDecimal
 import java.time.LocalDateTime
 
 @SpringBootTest
-@AutoConfigureMockMvc
+@Import(MockMvcTestConfig::class)
 @ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @WithMockUser(roles = ["ADMIN"])
 class PurchaseControllerTest {
 
     @Autowired lateinit var mockMvc: MockMvc
-    @Autowired lateinit var objectMapper: ObjectMapper
+    @Autowired lateinit var objectMapper: JsonMapper
 
     private val tenantId = "test-tenant"
     private val baseUrl = "/api/v1/tenants/$tenantId"

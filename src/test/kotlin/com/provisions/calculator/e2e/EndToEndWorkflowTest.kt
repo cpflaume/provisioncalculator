@@ -1,9 +1,10 @@
 package com.provisions.calculator.e2e
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
+import com.provisions.calculator.MockMvcTestConfig
+import org.springframework.context.annotation.Import
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.MediaType
 import org.springframework.security.test.context.support.WithMockUser
@@ -15,7 +16,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 import java.math.BigDecimal
 
 @SpringBootTest
-@AutoConfigureMockMvc
+@Import(MockMvcTestConfig::class)
 @ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @WithMockUser(roles = ["ADMIN"])
@@ -25,7 +26,7 @@ class EndToEndWorkflowTest {
     lateinit var mockMvc: MockMvc
 
     @Autowired
-    lateinit var objectMapper: ObjectMapper
+    lateinit var objectMapper: JsonMapper
 
     private fun loadTestData(path: String): String =
         javaClass.classLoader.getResource("testdata/$path")!!.readText()
@@ -263,7 +264,7 @@ class EndToEndWorkflowTest {
             for (j in i until end) {
                 batchArray.add(allPurchases[j])
             }
-            batch.set<com.fasterxml.jackson.databind.node.ArrayNode>("purchases", batchArray)
+            batch.set("purchases", batchArray)
 
             val batchResult = mockMvc.perform(
                 post("$base/settlements/$settlementId/purchases")
