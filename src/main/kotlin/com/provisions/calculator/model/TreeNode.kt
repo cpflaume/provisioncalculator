@@ -1,6 +1,8 @@
 package com.provisions.calculator.model
 
 import jakarta.persistence.*
+import org.hibernate.annotations.OnDelete
+import org.hibernate.annotations.OnDeleteAction
 
 @Entity
 @Table(name = "tree_node", uniqueConstraints = [UniqueConstraint(columnNames = ["tenant_id", "settlement_id", "customer_id"])])
@@ -21,5 +23,6 @@ class TreeNode(
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_node_id")
+    @OnDelete(action = OnDeleteAction.CASCADE)
     val parentNode: TreeNode? = null
 )
