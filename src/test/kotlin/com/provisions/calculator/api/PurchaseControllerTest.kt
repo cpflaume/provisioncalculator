@@ -1,10 +1,12 @@
 package com.provisions.calculator.api
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.provisions.calculator.api.request.CommissionRateRequest
+import com.provisions.calculator.api.request.ConfigureSettingsRequest
+import com.provisions.calculator.api.request.CreateSettlementRequest
 import com.provisions.calculator.api.request.PurchaseRequest
 import com.provisions.calculator.api.request.SubmitPurchasesRequest
-import com.provisions.calculator.api.request.CreateSettlementRequest
-import org.junit.jupiter.api.BeforeEach
+import com.provisions.calculator.api.request.TreeNodeRequest
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
@@ -41,7 +43,11 @@ class PurchaseControllerTest {
         return objectMapper.readTree(result.response.contentAsString)["id"].asLong()
     }
 
-    private fun submitPurchase(settlementId: Long, buyerId: String = "customer-1", amount: BigDecimal = BigDecimal("100.00")): Long {
+    private fun submitPurchase(
+        settlementId: Long,
+        buyerId: String = "customer-1",
+        amount: BigDecimal = BigDecimal("100.00"),
+    ): Long {
         val request = SubmitPurchasesRequest(
             purchases = listOf(
                 PurchaseRequest(buyerId, amount, LocalDateTime.of(2026, 3, 1, 10, 0))
@@ -53,6 +59,28 @@ class PurchaseControllerTest {
                 .content(objectMapper.writeValueAsString(request))
         ).andReturn()
         return objectMapper.readTree(result.response.contentAsString)["ids"][0].asLong()
+    }
+
+    private fun configureAndCalculate(settlementId: Long) {
+        // Minimal config: one rate + tree with root and customer-1
+        val configRequest = ConfigureSettingsRequest(
+            rates = listOf(CommissionRateRequest(1, BigDecimal("5.0"))),
+            tree = listOf(
+                TreeNodeRequest("root", null),
+                TreeNodeRequest("customer-1", "root"),
+            )
+        )
+        mockMvc.perform(
+            put("$baseUrl/settlements/$settlementId/config")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(configRequest))
+        ).andExpect(status().isOk)
+
+        mockMvc.perform(
+            post("$baseUrl/settlements/$settlementId/calculate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}")
+        ).andExpect(status().isOk)
     }
 
     // ---- submit response includes ids ----
@@ -141,12 +169,14 @@ class PurchaseControllerTest {
         val settlementId = createSettlement()
         val purchaseId = submitPurchase(settlementId)
 
-        // Approve the settlement via status endpoint
+        // approve requires CALCULATED status: configure rates+tree, then calculate
+        configureAndCalculate(settlementId)
+
         mockMvc.perform(
             post("$baseUrl/settlements/$settlementId/approve")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}")
-        )
+        ).andExpect(status().isOk)
 
         mockMvc.perform(delete("$baseUrl/settlements/$settlementId/purchases/$purchaseId"))
             .andExpect(status().isConflict)
@@ -157,7 +187,6 @@ class PurchaseControllerTest {
         val settlementId = createSettlement()
         val purchaseId = submitPurchase(settlementId)
 
-        // Perform without mock user (override class-level annotation)
         mockMvc.perform(
             delete("$baseUrl/settlements/$settlementId/purchases/$purchaseId")
                 .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.anonymous())
