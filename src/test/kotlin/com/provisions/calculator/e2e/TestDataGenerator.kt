@@ -1,8 +1,8 @@
 package com.provisions.calculator.e2e
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.node.ArrayNode
-import com.fasterxml.jackson.databind.node.ObjectNode
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.node.ArrayNode
+import tools.jackson.databind.node.ObjectNode
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDateTime
@@ -15,7 +15,7 @@ import java.time.LocalDateTime
  */
 object TestDataGenerator {
 
-    fun generateTree(objectMapper: ObjectMapper, nodeCount: Int, branchingFactor: Int = 5): ArrayNode {
+    fun generateTree(objectMapper: JsonMapper, nodeCount: Int, branchingFactor: Int = 5): ArrayNode {
         val tree = objectMapper.createArrayNode()
 
         // Root node
@@ -47,7 +47,7 @@ object TestDataGenerator {
     }
 
     fun generatePurchases(
-        objectMapper: ObjectMapper,
+        objectMapper: JsonMapper,
         treeNodes: ArrayNode,
         purchaseCount: Int
     ): ObjectNode {
@@ -77,17 +77,17 @@ object TestDataGenerator {
         }
 
         val wrapper = objectMapper.createObjectNode()
-        wrapper.set<ArrayNode>("purchases", purchases)
+        wrapper.set("purchases", purchases)
         return wrapper
     }
 
     fun buildConfigRequest(
-        objectMapper: ObjectMapper,
+        objectMapper: JsonMapper,
         ratesJson: String,
         treeNodes: ArrayNode
     ): ObjectNode {
         val ratesNode = objectMapper.readTree(ratesJson) as ObjectNode
-        ratesNode.set<ArrayNode>("tree", treeNodes)
+        ratesNode.set("tree", treeNodes)
         return ratesNode
     }
 

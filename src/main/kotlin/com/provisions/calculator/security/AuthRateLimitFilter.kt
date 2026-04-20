@@ -1,6 +1,6 @@
 package com.provisions.calculator.security
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -10,7 +10,7 @@ import org.springframework.web.filter.OncePerRequestFilter
 import java.util.concurrent.ConcurrentHashMap
 
 @Component
-class AuthRateLimitFilter(private val objectMapper: ObjectMapper) : OncePerRequestFilter() {
+class AuthRateLimitFilter(private val objectMapper: JsonMapper) : OncePerRequestFilter() {
 
     @org.springframework.beans.factory.annotation.Value("\${app.rate-limit.enabled:true}")
     private var rateLimitEnabled: Boolean = true

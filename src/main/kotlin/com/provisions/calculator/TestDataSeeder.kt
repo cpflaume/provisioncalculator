@@ -27,7 +27,7 @@ class TestDataSeeder(
     lateinit var adminDisplayName: String
 
     @Transactional
-    override fun run(vararg args: String?) {
+    override fun run(vararg args: String) {
         if (!userRepository.existsByEmail(adminEmail)) {
             authService.register(adminEmail, adminPassword, adminDisplayName)
             val user = userRepository.findByEmail(adminEmail).orElseThrow()

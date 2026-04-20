@@ -1,11 +1,12 @@
 package com.provisions.calculator.performance
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import com.provisions.calculator.api.request.*
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
+import com.provisions.calculator.MockMvcTestConfig
+import org.springframework.context.annotation.Import
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
@@ -20,7 +21,7 @@ import java.time.LocalDateTime
 import kotlin.random.Random
 
 @SpringBootTest
-@AutoConfigureMockMvc
+@Import(MockMvcTestConfig::class)
 @ActiveProfiles("test")
 @Tag("performance")
 @TestMethodOrder(OrderAnnotation::class)
@@ -36,7 +37,7 @@ class PerformanceTest {
     lateinit var mockMvc: MockMvc
 
     @Autowired
-    lateinit var objectMapper: ObjectMapper
+    lateinit var objectMapper: JsonMapper
 
     private val tenantId = "perf-tenant"
     private val baseUrl = "/api/v1/tenants/$tenantId"

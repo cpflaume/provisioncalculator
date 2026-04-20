@@ -1,13 +1,14 @@
 package com.provisions.calculator.api
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import com.provisions.calculator.model.UserRole
 import com.provisions.calculator.model.UserStatus
 import com.provisions.calculator.security.AppUserDetails
 import com.provisions.calculator.service.AuthService
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
+import com.provisions.calculator.MockMvcTestConfig
+import org.springframework.context.annotation.Import
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.MediaType
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user
@@ -20,13 +21,13 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 @SpringBootTest
-@AutoConfigureMockMvc
+@Import(MockMvcTestConfig::class)
 @ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class AuthControllerTest {
 
     @Autowired lateinit var mockMvc: MockMvc
-    @Autowired lateinit var objectMapper: ObjectMapper
+    @Autowired lateinit var objectMapper: JsonMapper
     @Autowired lateinit var authService: AuthService
 
     private fun registerBody(
