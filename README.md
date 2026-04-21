@@ -15,10 +15,14 @@
 
 > A pure JSON API was deemed insufficiently stimulating, so a frontend was built on top. You're welcome.
 
+## Why does it exist?
+
+- Creating it was a purely technical challenge, but I needed some use case to have something to implement 🤓
+
 ## ⚙️ What it does
 
 - 🌳 Models a customer hierarchy as a tree (the kind with nodes, not bark)
-- 💸 Calculates commissions depth-by-depth — e.g. 10% for direct upline, 5% for grandparent. Yes, it's MLM but make it software
+- 💸 Calculates commissions depth-by-depth — e.g. 10% for direct upline, 5% for grandparent.
 - 🔄 Manages the full settlement lifecycle: `configure` → `import` → `calculate` → `approve`
 - 📖 Ships with Swagger UI, because documentation should at least be interactive
 
