@@ -1,4 +1,4 @@
-# 🧮 Provision Calculator — Backend
+# Provision Calculator — Backend
 
 > A REST API for calculating multi-level commission settlements across a customer hierarchy tree.  
 > Built with Kotlin and Spring Boot, because Java felt like too much typing.
@@ -49,8 +49,6 @@
 # API docs — where you can click buttons and feel productive
 open http://localhost:8080/swagger-ui.html
 ```
-
-Use `acme` as the `tenantId` for testing. See [api-docs.md](api-docs.md) for a full walkthrough.
 
 ## 🔗 Related
 
