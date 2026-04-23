@@ -163,15 +163,25 @@ class CalculationService(
         treeMap: Map<String, com.provisions.calculator.engine.TreeNodeMemento>,
         sortedRuleIds: List<String>
     ): String {
-        val sortedRates = ratesByDepth.entries.sortedBy { it.key }.joinToString(",") { "${it.key}:${it.value}" }
-        val purchaseIds = sortedPurchaseIds.joinToString(",")
-        val treeData = treeMap.entries.sortedBy { it.key }.joinToString(",") { "${it.key}:${it.value.parentCustomerId ?: "ROOT"}" }
-        val rules = sortedRuleIds.joinToString(",")
-        val input = "$tenantId|$settlementId|$sortedRates|$purchaseIds|$treeData|$rules"
-
+        // Stream data directly into digest to avoid building a multi-MB string for large trees
         val digest = MessageDigest.getInstance("SHA-256")
-        val hashBytes = digest.digest(input.toByteArray())
-        return hashBytes.joinToString("") { "%02x".format(it) }
+        digest.update("$tenantId|$settlementId|".toByteArray())
+        for ((depth, rate) in ratesByDepth.entries.sortedBy { it.key }) {
+            digest.update("$depth:$rate,".toByteArray())
+        }
+        digest.update("|".toByteArray())
+        for (id in sortedPurchaseIds) {
+            digest.update("$id,".toByteArray())
+        }
+        digest.update("|".toByteArray())
+        for ((nodeId, memento) in treeMap.entries.sortedBy { it.key }) {
+            digest.update("$nodeId:${memento.parentCustomerId ?: "ROOT"},".toByteArray())
+        }
+        digest.update("|".toByteArray())
+        for (ruleId in sortedRuleIds) {
+            digest.update("$ruleId,".toByteArray())
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     data class CalculationResult(

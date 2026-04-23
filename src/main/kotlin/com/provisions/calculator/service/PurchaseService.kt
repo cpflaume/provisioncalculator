@@ -28,6 +28,12 @@ class PurchaseService(
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Purchases list cannot be empty")
         }
 
+        // Reset status first to ensure consistent state if purchase save fails partially
+        if (settlement.status == SettlementStatus.CALCULATED) {
+            settlement.status = SettlementStatus.OPEN
+            settlementRepository.save(settlement)
+        }
+
         val purchases = request.purchases.map { p ->
             Purchase(
                 tenantId = tenantId,
@@ -38,35 +44,11 @@ class PurchaseService(
             )
         }
 
-        val saved = purchaseRepository.saveAll(purchases)
-
-        // Reset status to OPEN if was CALCULATED
-        if (settlement.status == SettlementStatus.CALCULATED) {
-            settlement.status = SettlementStatus.OPEN
-            settlementRepository.save(settlement)
-        }
-
-        return saved
+        return purchaseRepository.saveAll(purchases)
     }
 
     fun findAll(tenantId: String, settlementId: Long, pageable: Pageable): Page<Purchase> {
         settlementService.findById(tenantId, settlementId)
         return purchaseRepository.findByTenantIdAndSettlementId(tenantId, settlementId, pageable)
-    }
-
-    @Transactional
-    fun deletePurchase(tenantId: String, settlementId: Long, purchaseId: Long) {
-        val settlement = settlementService.findById(tenantId, settlementId)
-        settlementService.guardNotApproved(settlement)
-
-        val purchase = purchaseRepository.findById(purchaseId).orElseThrow {
-            ResponseStatusException(HttpStatus.NOT_FOUND, "Purchase $purchaseId not found")
-        }
-
-        if (purchase.tenantId != tenantId || purchase.settlement.id != settlementId) {
-            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Purchase $purchaseId not found")
-        }
-
-        purchaseRepository.delete(purchase)
     }
 }
