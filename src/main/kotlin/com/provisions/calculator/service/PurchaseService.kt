@@ -51,4 +51,20 @@ class PurchaseService(
         settlementService.findById(tenantId, settlementId)
         return purchaseRepository.findByTenantIdAndSettlementId(tenantId, settlementId, pageable)
     }
+
+    @Transactional
+    fun deletePurchase(tenantId: String, settlementId: Long, purchaseId: Long) {
+        val settlement = settlementService.findById(tenantId, settlementId)
+        settlementService.guardNotApproved(settlement)
+
+        val purchase = purchaseRepository.findById(purchaseId).orElseThrow {
+            ResponseStatusException(HttpStatus.NOT_FOUND, "Purchase $purchaseId not found")
+        }
+
+        if (purchase.tenantId != tenantId || purchase.settlement.id != settlementId) {
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Purchase $purchaseId not found")
+        }
+
+        purchaseRepository.delete(purchase)
+    }
 }
