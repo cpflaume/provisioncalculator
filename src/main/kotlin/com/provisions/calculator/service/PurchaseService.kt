@@ -28,6 +28,12 @@ class PurchaseService(
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Purchases list cannot be empty")
         }
 
+        // Reset status first to ensure consistent state if purchase save fails partially
+        if (settlement.status == SettlementStatus.CALCULATED) {
+            settlement.status = SettlementStatus.OPEN
+            settlementRepository.save(settlement)
+        }
+
         val purchases = request.purchases.map { p ->
             Purchase(
                 tenantId = tenantId,
@@ -38,15 +44,7 @@ class PurchaseService(
             )
         }
 
-        val saved = purchaseRepository.saveAll(purchases)
-
-        // Reset status to OPEN if was CALCULATED
-        if (settlement.status == SettlementStatus.CALCULATED) {
-            settlement.status = SettlementStatus.OPEN
-            settlementRepository.save(settlement)
-        }
-
-        return saved
+        return purchaseRepository.saveAll(purchases)
     }
 
     fun findAll(tenantId: String, settlementId: Long, pageable: Pageable): Page<Purchase> {

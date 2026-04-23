@@ -4,7 +4,10 @@ import jakarta.persistence.*
 import java.math.BigDecimal
 
 @Entity
-@Table(name = "commission_result")
+@Table(
+    name = "commission_result",
+    indexes = [Index(name = "idx_commission_result_recipient", columnList = "calculation_id, recipient_customer_id")]
+)
 class CommissionResult(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

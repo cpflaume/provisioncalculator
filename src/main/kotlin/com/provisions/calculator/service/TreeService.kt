@@ -62,7 +62,7 @@ class TreeService(private val treeNodeRepository: TreeNodeRepository) {
             }
         }
 
-        // Cycle detection via DFS
+        // Build children map for DFS traversal
         val childrenMap = mutableMapOf<String, MutableList<String>>()
         for (node in nodes) {
             if (node.parentCustomerId != null) {
@@ -70,25 +70,28 @@ class TreeService(private val treeNodeRepository: TreeNodeRepository) {
             }
         }
 
+        // Single DFS from root: detects cycles and verifies all nodes are reachable
         val visited = mutableSetOf<String>()
         val stack = mutableSetOf<String>()
+        val root = roots[0].customerId
 
-        fun hasCycle(nodeId: String): Boolean {
-            if (nodeId in stack) return true
-            if (nodeId in visited) return false
+        fun dfs(nodeId: String) {
+            if (nodeId in stack) {
+                throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Tree contains a cycle")
+            }
+            if (nodeId in visited) return
             visited.add(nodeId)
             stack.add(nodeId)
             for (child in childrenMap[nodeId] ?: emptyList()) {
-                if (hasCycle(child)) return true
+                dfs(child)
             }
             stack.remove(nodeId)
-            return false
         }
 
-        for (node in nodes) {
-            if (hasCycle(node.customerId)) {
-                throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Tree contains a cycle")
-            }
+        dfs(root)
+
+        if (visited.size != nodes.size) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Tree contains nodes not reachable from root")
         }
     }
 }
