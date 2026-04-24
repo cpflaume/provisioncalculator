@@ -3,11 +3,12 @@ package com.provisions.calculator.engine
 import org.springframework.stereotype.Component
 
 @Component
-class CommissionRuleEngine(private val rules: List<CommissionRule>) {
+class CommissionRuleEngine(rules: List<CommissionRule>) {
+
+    private val sortedRules = rules.sortedBy { it.order }
 
     fun execute(context: CalculationContext): List<CommissionLineItem> {
-        return rules
-            .sortedBy { it.order }
+        return sortedRules
             .filter { it.isApplicable(context) }
             .flatMap { it.calculate(context) }
     }
