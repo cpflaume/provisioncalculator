@@ -9,6 +9,7 @@ import org.springframework.security.core.userdetails.UserDetails
 class AppUserDetails(
     val userId: Long,
     private val email: String,
+    val displayName: String,
     private val hashedPassword: String?,
     val role: UserRole,
     val status: UserStatus,
