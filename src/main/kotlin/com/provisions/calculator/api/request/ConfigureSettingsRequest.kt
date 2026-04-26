@@ -3,7 +3,6 @@ package com.provisions.calculator.api.request
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Digits
-import jakarta.validation.constraints.NotEmpty
 import jakarta.validation.constraints.Positive
 import jakarta.validation.constraints.PositiveOrZero
 import java.math.BigDecimal
@@ -18,13 +17,11 @@ data class CommissionRateRequest(
     val ratePercent: BigDecimal
 )
 
-@Schema(description = "Configuration for commission rates and referral tree. Replaces any existing config.")
+@Schema(description = "Configuration for commission rates and referral tree. Replaces any existing config. Rates and tree may be saved independently — either list may be empty.")
 data class ConfigureSettingsRequest(
     @field:Valid
-    @field:NotEmpty
-    val rates: List<CommissionRateRequest>,
+    val rates: List<CommissionRateRequest> = emptyList(),
 
     @field:Valid
-    @field:NotEmpty
-    val tree: List<TreeNodeRequest>
+    val tree: List<TreeNodeRequest> = emptyList()
 )
