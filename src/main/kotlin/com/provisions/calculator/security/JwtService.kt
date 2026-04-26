@@ -25,12 +25,13 @@ class JwtService(private val props: JwtProperties) {
         Keys.hmacShaKeyFor(props.secret.toByteArray(Charsets.UTF_8))
     }
 
-    fun generate(userId: Long, email: String, role: UserRole, status: UserStatus, tenantIds: Set<String>): String {
+    fun generate(userId: Long, email: String, displayName: String, role: UserRole, status: UserStatus, tenantIds: Set<String>): String {
         val now = System.currentTimeMillis()
         return Jwts.builder()
             .issuer(props.issuer)
             .subject(email)
             .claim("userId", userId)
+            .claim("displayName", displayName)
             .claim("role", role.name)
             .claim("status", status.name)
             .claim("tenantIds", tenantIds.toList())

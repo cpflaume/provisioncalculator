@@ -11,6 +11,9 @@ interface UserTenantRepository : JpaRepository<UserTenant, UserTenantId> {
     @Query("SELECT ut.id.tenantId FROM UserTenant ut WHERE ut.id.userId = :userId")
     fun findTenantIdsByUserId(userId: Long): List<String>
 
+    @Query("SELECT ut.id.userId, ut.id.tenantId FROM UserTenant ut")
+    fun findAllUserTenantMappings(): List<Array<Any>>
+
     @Modifying
     @Query("DELETE FROM UserTenant ut WHERE ut.id.userId = :userId AND ut.id.tenantId = :tenantId")
     fun deleteByUserIdAndTenantId(userId: Long, tenantId: String)

@@ -59,7 +59,6 @@ class MetricsService(
         if (latestCalc != null) {
             val results = commissionResultRepository.findByCalculationId(latestCalc.id)
             commissionAnalysis = analyzeCommissions(results)
-
             val settings = commissionSettingsRepository.findByTenantIdAndSettlementId(tenantId, settlementId)
             crossCheck = if (settings != null) {
                 computeCrossCheck(purchaseAnalysis.totalAmount, settings.rates, commissionAnalysis.totalCommission)
@@ -69,11 +68,7 @@ class MetricsService(
             crossCheck = null
         }
 
-        return SettlementMetrics(
-            purchases = purchaseAnalysis,
-            commissions = commissionAnalysis,
-            crossCheck = crossCheck
-        )
+        return SettlementMetrics(purchases = purchaseAnalysis, commissions = commissionAnalysis, crossCheck = crossCheck)
     }
 
     private fun analyzePurchases(purchases: List<com.provisions.calculator.model.Purchase>): PurchaseAnalysis {
@@ -84,106 +79,65 @@ class MetricsService(
                 stdDev = BigDecimal.ZERO, outliers = emptyList()
             )
         }
-
         val amounts = purchases.map { it.amount }
         val count = amounts.size
         val total = amounts.fold(BigDecimal.ZERO) { acc, a -> acc.add(a) }
         val avg = total.divide(BigDecimal(count), 4, RoundingMode.HALF_UP)
         val min = amounts.min()
         val max = amounts.max()
-
-        val variance = amounts.fold(BigDecimal.ZERO) { acc, a ->
-            val diff = a.subtract(avg)
-            acc.add(diff.multiply(diff))
-        }.divide(BigDecimal(count), 8, RoundingMode.HALF_UP)
-
-        val stdDev = BigDecimal(Math.sqrt(variance.toDouble()), MathContext(8))
-            .setScale(4, RoundingMode.HALF_UP)
+        val stdDev = stdDevOf(amounts, avg)
 
         val outliers = if (stdDev > BigDecimal.ZERO) {
             val threshold = stdDev.multiply(BigDecimal(2))
-            purchases.filter { p ->
-                p.amount.subtract(avg).abs() > threshold
-            }.map { p ->
-                val deviation = if (stdDev > BigDecimal.ZERO) {
-                    p.amount.subtract(avg).divide(stdDev, 2, RoundingMode.HALF_UP)
-                } else BigDecimal.ZERO
-                PurchaseOutlier(
-                    purchaseId = p.id,
-                    buyerCustomerId = p.buyerCustomerId,
-                    amount = p.amount,
-                    deviationFactor = deviation
-                )
-            }
+            purchases.filter { p -> p.amount.subtract(avg).abs() > threshold }
+                .map { p ->
+                    PurchaseOutlier(
+                        purchaseId = p.id,
+                        buyerCustomerId = p.buyerCustomerId,
+                        amount = p.amount,
+                        deviationFactor = p.amount.subtract(avg).divide(stdDev, 2, RoundingMode.HALF_UP)
+                    )
+                }
         } else emptyList()
 
-        return PurchaseAnalysis(
-            totalAmount = total, count = count,
-            average = avg, min = min, max = max,
-            stdDev = stdDev, outliers = outliers
-        )
+        return PurchaseAnalysis(totalAmount = total, count = count, average = avg, min = min, max = max, stdDev = stdDev, outliers = outliers)
     }
 
     private fun analyzeCommissions(results: List<com.provisions.calculator.model.CommissionResult>): CommissionAnalysis {
         if (results.isEmpty()) {
-            return CommissionAnalysis(
-                totalCommission = BigDecimal.ZERO,
-                recipientCount = 0,
-                byDepth = emptyList(),
-                outliers = emptyList()
-            )
+            return CommissionAnalysis(totalCommission = BigDecimal.ZERO, recipientCount = 0, byDepth = emptyList(), outliers = emptyList())
         }
 
         val totalCommission = results.fold(BigDecimal.ZERO) { acc, r -> acc.add(r.amount) }
 
         val byDepth = results.groupBy { it.depth }
             .map { (depth, items) ->
-                DepthBucket(
-                    depth = depth,
-                    totalAmount = items.fold(BigDecimal.ZERO) { acc, r -> acc.add(r.amount) },
-                    count = items.size
-                )
+                DepthBucket(depth = depth, totalAmount = items.fold(BigDecimal.ZERO) { acc, r -> acc.add(r.amount) }, count = items.size)
             }
             .sortedBy { it.depth }
 
         val recipientTotals = results.groupBy { it.recipientCustomerId }
-            .map { (customerId, items) ->
-                customerId to items.fold(BigDecimal.ZERO) { acc, r -> acc.add(r.amount) }
-            }
-
-        val recipientCount = recipientTotals.size
+            .map { (customerId, items) -> customerId to items.fold(BigDecimal.ZERO) { acc, r -> acc.add(r.amount) } }
 
         val outliers = if (recipientTotals.size > 1) {
             val amounts = recipientTotals.map { it.second }
             val avg = amounts.fold(BigDecimal.ZERO) { acc, a -> acc.add(a) }
                 .divide(BigDecimal(amounts.size), 4, RoundingMode.HALF_UP)
-            val variance = amounts.fold(BigDecimal.ZERO) { acc, a ->
-                val diff = a.subtract(avg)
-                acc.add(diff.multiply(diff))
-            }.divide(BigDecimal(amounts.size), 8, RoundingMode.HALF_UP)
-            val stdDev = BigDecimal(Math.sqrt(variance.toDouble()), MathContext(8))
-                .setScale(4, RoundingMode.HALF_UP)
-
+            val stdDev = stdDevOf(amounts, avg)
             if (stdDev > BigDecimal.ZERO) {
                 val threshold = stdDev.multiply(BigDecimal(2))
-                recipientTotals.filter { (_, total) ->
-                    total.subtract(avg).abs() > threshold
-                }.map { (customerId, total) ->
-                    CommissionOutlier(
-                        recipientCustomerId = customerId,
-                        totalCommission = total,
-                        deviationFactor = total.subtract(avg).divide(stdDev, 2, RoundingMode.HALF_UP)
-                    )
-                }
+                recipientTotals.filter { (_, total) -> total.subtract(avg).abs() > threshold }
+                    .map { (customerId, total) ->
+                        CommissionOutlier(
+                            recipientCustomerId = customerId,
+                            totalCommission = total,
+                            deviationFactor = total.subtract(avg).divide(stdDev, 2, RoundingMode.HALF_UP)
+                        )
+                    }
             } else emptyList()
         } else emptyList()
 
-        return CommissionAnalysis(
-            totalCommission = totalCommission,
-            recipientCount = recipientCount,
-            byDepth = byDepth,
-            outliers = outliers
-        )
+        return CommissionAnalysis(totalCommission = totalCommission, recipientCount = recipientTotals.size, byDepth = byDepth, outliers = outliers)
     }
 
     private fun computeCrossCheck(
@@ -195,21 +149,14 @@ class MetricsService(
             val theoreticalAmount = totalPurchaseVolume
                 .multiply(rate.ratePercent)
                 .divide(BigDecimal(100), 4, RoundingMode.HALF_UP)
-            TheoreticalDepthLine(
-                depth = rate.depth,
-                ratePercent = rate.ratePercent,
-                amount = theoreticalAmount
-            )
+            TheoreticalDepthLine(depth = rate.depth, ratePercent = rate.ratePercent, amount = theoreticalAmount)
         }
-
         val theoreticalTotal = depthLines.fold(BigDecimal.ZERO) { acc, line -> acc.add(line.amount) }
-
         val deviationPercent = if (theoreticalTotal > BigDecimal.ZERO) {
             actualTotalCommission.subtract(theoreticalTotal)
                 .multiply(BigDecimal(100))
                 .divide(theoreticalTotal, 2, RoundingMode.HALF_UP)
         } else BigDecimal.ZERO
-
         return CrossCheckResult(
             totalPurchaseVolume = totalPurchaseVolume,
             theoreticalByDepth = depthLines,
@@ -217,6 +164,16 @@ class MetricsService(
             actualTotal = actualTotalCommission,
             deviationPercent = deviationPercent
         )
+    }
+
+    private fun stdDevOf(amounts: List<BigDecimal>, avg: BigDecimal): BigDecimal {
+        if (amounts.size < 2) return BigDecimal.ZERO
+        val count = BigDecimal(amounts.size)
+        val variance = amounts.fold(BigDecimal.ZERO) { acc, a ->
+            val diff = a.subtract(avg)
+            acc.add(diff.multiply(diff))
+        }.divide(count, 8, RoundingMode.HALF_UP)
+        return variance.sqrt(MathContext(8)).setScale(4, RoundingMode.HALF_UP)
     }
 
     // --- DTOs ---

@@ -176,6 +176,7 @@ class AuthControllerTest {
         val principal = AppUserDetails(
             userId = registered.user.userId,
             email = "me@example.com",
+            displayName = "Me User",
             hashedPassword = null,
             role = UserRole.USER,
             status = UserStatus.PENDING,

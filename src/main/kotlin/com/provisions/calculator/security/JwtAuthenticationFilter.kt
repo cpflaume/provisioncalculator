@@ -29,6 +29,7 @@ class JwtAuthenticationFilter(
                 val claims = jwtService.parse(token)
                 val userId = claims.get("userId", Integer::class.java).toLong()
                 val email = claims.subject
+                val displayName = claims.get("displayName", String::class.java) ?: email
                 val role = UserRole.valueOf(claims.get("role", String::class.java))
                 val tenantIds = claims.get("tenantIds", List::class.java)
                     ?.filterIsInstance<String>()?.toSet() ?: emptySet()
@@ -38,7 +39,7 @@ class JwtAuthenticationFilter(
                     .map { it.status }
                     .orElse(UserStatus.DISABLED)
 
-                val userDetails = AppUserDetails(userId, email, null, role, currentStatus, tenantIds)
+                val userDetails = AppUserDetails(userId, email, displayName, null, role, currentStatus, tenantIds)
 
                 if (!userDetails.isAccountNonLocked()) {
                     filterChain.doFilter(request, response)
@@ -47,8 +48,8 @@ class JwtAuthenticationFilter(
 
                 val auth = UsernamePasswordAuthenticationToken(userDetails, null, userDetails.authorities)
                 SecurityContextHolder.getContext().authentication = auth
-            } catch (_: Exception) {
-                // Invalid token — leave context unauthenticated; security rules enforce access
+            } catch (e: Exception) {
+                logger.debug("JWT validation failed: ${e.message}")
             }
         }
         filterChain.doFilter(request, response)

@@ -41,9 +41,16 @@ class AuthController(private val authService: AuthService) {
     }
 
     @GetMapping("/me")
-    fun me(@AuthenticationPrincipal principal: AppUserDetails?): ResponseEntity<AuthUserResponse> {
-        if (principal == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        val response = authService.me(principal.userId)
-        return ResponseEntity.ok(response)
+    fun me(@AuthenticationPrincipal principal: AppUserDetails): ResponseEntity<AuthUserResponse> {
+        return ResponseEntity.ok(
+            AuthUserResponse(
+                userId = principal.userId,
+                email = principal.username,
+                displayName = principal.displayName,
+                role = principal.role,
+                status = principal.status,
+                tenantIds = principal.tenantIds
+            )
+        )
     }
 }

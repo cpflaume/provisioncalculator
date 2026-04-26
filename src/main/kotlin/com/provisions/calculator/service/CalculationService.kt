@@ -5,6 +5,7 @@ import com.provisions.calculator.engine.CommissionRule
 import com.provisions.calculator.engine.CommissionRuleEngine
 import com.provisions.calculator.model.Calculation
 import com.provisions.calculator.model.CommissionResult
+import com.provisions.calculator.model.Settlement
 import com.provisions.calculator.model.SettlementStatus
 import com.provisions.calculator.repository.*
 import org.springframework.dao.DataIntegrityViolationException
@@ -43,30 +44,18 @@ class CalculationService(
 
         val ratesByDepth = settings.rates.associate { it.depth to it.ratePercent }
 
-        // Load tree for both hash computation and calculation
         val treeMap = treeService.loadTreeIntoMemory(tenantId, settlementId)
 
-        // Compute input hash including tree structure and active rule IDs
         val sortedRuleIds = commissionRules.sortedBy { it.ruleId }.map { it.ruleId }
         val inputHash = computeInputHash(tenantId, settlementId, ratesByDepth, purchases.map { it.id }.sorted(), treeMap, sortedRuleIds)
 
-        // Idempotency check
         val existing = calculationRepository.findByTenantIdAndSettlementIdAndInputHash(tenantId, settlementId, inputHash)
         if (existing != null) {
-            // Ensure settlement status is CALCULATED even on cache hit
-            if (settlement.status != SettlementStatus.CALCULATED) {
-                settlement.status = SettlementStatus.CALCULATED
-                settlementRepository.save(settlement)
-            }
+            markSettlementCalculated(settlement)
             val results = commissionResultRepository.findByCalculationId(existing.id)
-            return CalculationResult(
-                calculation = existing,
-                results = results,
-                fromCache = true
-            )
+            return CalculationResult(calculation = existing, results = results, fromCache = true)
         }
 
-        // Build context
         val totalRevenue = purchases.fold(BigDecimal.ZERO) { acc, p -> acc.add(p.amount) }
 
         val context = CalculationContext(
@@ -79,10 +68,8 @@ class CalculationService(
             nodeCount = treeMap.size
         )
 
-        // Run engine
         val lineItems = ruleEngine.execute(context)
 
-        // Persist calculation — handle concurrent insert race condition
         val calculation = Calculation(
             tenantId = tenantId,
             settlement = settlement,
@@ -92,18 +79,13 @@ class CalculationService(
             calculationRepository.save(calculation)
             calculationRepository.flush()
         } catch (e: DataIntegrityViolationException) {
-            // Concurrent request already inserted — return its result
             val concurrentCalc = calculationRepository.findByTenantIdAndSettlementIdAndInputHash(tenantId, settlementId, inputHash)
                 ?: throw e
-            if (settlement.status != SettlementStatus.CALCULATED) {
-                settlement.status = SettlementStatus.CALCULATED
-                settlementRepository.save(settlement)
-            }
+            markSettlementCalculated(settlement)
             val results = commissionResultRepository.findByCalculationId(concurrentCalc.id)
             return CalculationResult(calculation = concurrentCalc, results = results, fromCache = true)
         }
 
-        // Persist results
         val purchaseMap = purchases.associateBy { it.id }
         val commissionResults = lineItems.map { item ->
             CommissionResult(
@@ -119,9 +101,7 @@ class CalculationService(
         }
         commissionResultRepository.saveAll(commissionResults)
 
-        // Update settlement status
-        settlement.status = SettlementStatus.CALCULATED
-        settlementRepository.save(settlement)
+        markSettlementCalculated(settlement)
 
         return CalculationResult(
             calculation = calculation,
@@ -155,6 +135,13 @@ class CalculationService(
         return commissionResultRepository.findByCalculationId(calculation.id)
     }
 
+    private fun markSettlementCalculated(settlement: Settlement) {
+        if (settlement.status != SettlementStatus.CALCULATED) {
+            settlement.status = SettlementStatus.CALCULATED
+            settlementRepository.save(settlement)
+        }
+    }
+
     private fun computeInputHash(
         tenantId: String,
         settlementId: Long,
@@ -163,7 +150,6 @@ class CalculationService(
         treeMap: Map<String, com.provisions.calculator.engine.TreeNodeMemento>,
         sortedRuleIds: List<String>
     ): String {
-        // Stream data directly into digest to avoid building a multi-MB string for large trees
         val digest = MessageDigest.getInstance("SHA-256")
         digest.update("$tenantId|$settlementId|".toByteArray())
         for ((depth, rate) in ratesByDepth.entries.sortedBy { it.key }) {

@@ -61,7 +61,7 @@ class AuthService(
         userTenantRepository.save(UserTenant(id = UserTenantId(user.id, tenant.id), user = user, tenant = tenant))
 
         val tenantIds = setOf(tenant.id)
-        val token = jwtService.generate(user.id, user.email, user.role, user.status, tenantIds)
+        val token = jwtService.generate(user.id, user.email, user.displayName, user.role, user.status, tenantIds)
         return AuthResponse(token, user.toResponse(tenantIds))
     }
 
@@ -74,15 +74,8 @@ class AuthService(
         }
 
         val tenantIds = userTenantRepository.findTenantIdsByUserId(user.id).toSet()
-        val token = jwtService.generate(user.id, user.email, user.role, user.status, tenantIds)
+        val token = jwtService.generate(user.id, user.email, user.displayName, user.role, user.status, tenantIds)
         return AuthResponse(token, user.toResponse(tenantIds))
-    }
-
-    fun me(userId: Long): AuthUserResponse {
-        val user = userRepository.findById(userId)
-            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "User not found") }
-        val tenantIds = userTenantRepository.findTenantIdsByUserId(userId).toSet()
-        return user.toResponse(tenantIds)
     }
 
     private fun User.toResponse(tenantIds: Set<String>) = AuthUserResponse(
