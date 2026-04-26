@@ -4,7 +4,9 @@ import tools.jackson.databind.json.JsonMapper
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpMethod
+import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 import java.util.concurrent.ConcurrentHashMap
@@ -12,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap
 @Component
 class AuthRateLimitFilter(private val objectMapper: JsonMapper) : OncePerRequestFilter() {
 
-    @org.springframework.beans.factory.annotation.Value("\${app.rate-limit.enabled:true}")
+    @Value("\${app.rate-limit.enabled:true}")
     private var rateLimitEnabled: Boolean = true
 
     private data class WindowKey(val ip: String, val path: String)
@@ -62,7 +64,7 @@ class AuthRateLimitFilter(private val objectMapper: JsonMapper) : OncePerRequest
                 response.contentType = "application/json"
                 response.writer.write(
                     objectMapper.writeValueAsString(
-                        mapOf("status" to 429, "message" to "Zu viele Anfragen. Bitte warten Sie eine Minute.")
+                        mapOf("status" to 429, "message" to "Too many requests. Please wait a minute.")
                     )
                 )
                 return
@@ -70,5 +72,16 @@ class AuthRateLimitFilter(private val objectMapper: JsonMapper) : OncePerRequest
         }
 
         filterChain.doFilter(request, response)
+    }
+
+    @Scheduled(fixedDelay = 300_000)
+    fun evictExpiredWindows() {
+        val cutoff = System.currentTimeMillis() - windowMs
+        windows.entries.removeIf { (_, timestamps) ->
+            synchronized(timestamps) {
+                while (timestamps.isNotEmpty() && timestamps.first() < cutoff) timestamps.removeFirst()
+                timestamps.isEmpty()
+            }
+        }
     }
 }
