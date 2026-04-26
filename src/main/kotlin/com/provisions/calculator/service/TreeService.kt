@@ -36,9 +36,8 @@ class TreeService(private val treeNodeRepository: TreeNodeRepository) {
     }
 
     fun validate(nodes: List<TreeNodeRequest>) {
-        if (nodes.isEmpty()) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Tree must contain at least one node")
-        }
+        // Empty tree is allowed: rates and tree may be saved independently.
+        if (nodes.isEmpty()) return
 
         val customerIds = nodes.map { it.customerId }.toSet()
         if (customerIds.size != nodes.size) {
