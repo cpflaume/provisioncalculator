@@ -23,11 +23,8 @@ class TreeServiceTest {
     }
 
     @Test
-    fun `empty tree is rejected`() {
-        val ex = assertThrows<ResponseStatusException> {
-            treeService.validate(emptyList())
-        }
-        assertTrue(ex.reason!!.contains("at least one node"))
+    fun `empty tree is allowed (rates and tree can be saved independently)`() {
+        assertDoesNotThrow { treeService.validate(emptyList()) }
     }
 
     @Test
