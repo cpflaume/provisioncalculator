@@ -35,7 +35,13 @@ class UserAdminService(
     private val userTenantRepository: UserTenantRepository
 ) {
 
-    fun listUsers(): List<UserAdminView> = userRepository.findAll().map { it.toAdminView() }
+    fun listUsers(): List<UserAdminView> {
+        val users = userRepository.findAll()
+        if (users.isEmpty()) return emptyList()
+        val tenantIdsByUser = userTenantRepository.findAllUserTenantMappings()
+            .groupBy({ it[0] as Long }, { it[1] as String })
+        return users.map { it.toAdminView(tenantIdsByUser) }
+    }
 
     @Transactional
     fun activate(userId: Long): UserAdminView {
@@ -77,12 +83,12 @@ class UserAdminService(
     private fun findUser(userId: Long) = userRepository.findById(userId)
         .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "User not found") }
 
-    private fun User.toAdminView() = UserAdminView(
+    private fun User.toAdminView(tenantIdsByUser: Map<Long, List<String>> = emptyMap()) = UserAdminView(
         userId = id,
         email = email,
         displayName = displayName,
         role = role,
         status = status,
-        tenantIds = userTenantRepository.findTenantIdsByUserId(id)
+        tenantIds = tenantIdsByUser[id] ?: userTenantRepository.findTenantIdsByUserId(id)
     )
 }
