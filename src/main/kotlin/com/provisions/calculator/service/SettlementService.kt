@@ -112,6 +112,7 @@ class SettlementService(
 
         return ConfigData(
             settlement = settlement,
+            settings = settings,
             rates = rates,
             nodes = nodes,
             parentCustomerIdMap = nodes.associate { node ->
@@ -148,6 +149,7 @@ class SettlementService(
 
     data class ConfigData(
         val settlement: Settlement,
+        val settings: CommissionSettings?,
         val rates: List<CommissionRate>,
         val nodes: List<TreeNode>,
         val parentCustomerIdMap: Map<String, String?> = emptyMap()

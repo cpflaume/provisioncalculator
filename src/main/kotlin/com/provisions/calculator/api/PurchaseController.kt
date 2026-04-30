@@ -10,7 +10,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.*
 import java.math.BigDecimal
-import java.time.LocalDateTime
+import java.time.Instant
 
 @RestController
 @RequestMapping("/api/v1/tenants/{tenantId}/settlements/{settlementId}/purchases")
@@ -36,7 +36,7 @@ If the settlement was previously CALCULATED, submitting new purchases resets it 
             settlementId = settlementId,
             accepted = purchases.size,
             ids = purchases.map { it.id },
-            submittedAt = LocalDateTime.now()
+            submittedAt = Instant.now()
         )
     }
 
@@ -72,6 +72,6 @@ If the settlement was previously CALCULATED, submitting new purchases resets it 
     }
 }
 
-data class PurchaseSubmitResponse(val settlementId: Long, val accepted: Int, val ids: List<Long>, val submittedAt: LocalDateTime)
-data class PurchaseResponse(val id: Long, val buyerCustomerId: String, val amount: BigDecimal, val purchasedAt: LocalDateTime)
+data class PurchaseSubmitResponse(val settlementId: Long, val accepted: Int, val ids: List<Long>, val submittedAt: Instant)
+data class PurchaseResponse(val id: Long, val buyerCustomerId: String, val amount: BigDecimal, val purchasedAt: Instant)
 data class PurchasePageResponse(val content: List<PurchaseResponse>, val totalElements: Long, val totalPages: Int, val page: Int, val size: Int)

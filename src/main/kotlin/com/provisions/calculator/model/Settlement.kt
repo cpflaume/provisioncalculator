@@ -1,7 +1,7 @@
 package com.provisions.calculator.model
 
 import jakarta.persistence.*
-import java.time.LocalDateTime
+import java.time.Instant
 
 enum class SettlementStatus {
     OPEN, CALCULATED, APPROVED, REJECTED
@@ -25,5 +25,5 @@ class Settlement(
     var status: SettlementStatus = SettlementStatus.OPEN,
 
     @Column(name = "created_at", nullable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
+    val createdAt: Instant = Instant.now()
 )

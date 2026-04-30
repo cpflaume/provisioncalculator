@@ -2,7 +2,7 @@ package com.provisions.calculator.model
 
 import jakarta.persistence.*
 import java.math.BigDecimal
-import java.time.LocalDateTime
+import java.time.Instant
 
 @Entity
 @Table(name = "purchase")
@@ -25,5 +25,5 @@ class Purchase(
     val amount: BigDecimal,
 
     @Column(name = "purchased_at", nullable = false)
-    val purchasedAt: LocalDateTime
+    val purchasedAt: Instant
 )

@@ -1,7 +1,7 @@
 package com.provisions.calculator.model
 
 import jakarta.persistence.*
-import java.time.LocalDateTime
+import java.time.Instant
 import java.util.*
 
 @Entity
@@ -21,5 +21,5 @@ class Calculation(
     val inputHash: String,
 
     @Column(name = "calculated_at", nullable = false)
-    val calculatedAt: LocalDateTime = LocalDateTime.now()
+    val calculatedAt: Instant = Instant.now()
 )
