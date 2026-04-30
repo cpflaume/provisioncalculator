@@ -1,8 +1,8 @@
 {
   "purchases": [
-    { "buyerCustomerId": "E", "amount": 100.00, "purchasedAt": "2026-03-01T10:00:00" },
-    { "buyerCustomerId": "D", "amount": 200.00, "purchasedAt": "2026-03-02T14:30:00" },
-    { "buyerCustomerId": "C", "amount": 50.00,  "purchasedAt": "2026-03-03T09:15:00" },
-    { "buyerCustomerId": "B", "amount": 300.00, "purchasedAt": "2026-03-04T16:45:00" }
+    { "buyerCustomerId": "E", "amount": 100.00, "purchasedAt": "2026-03-01T10:00:00Z" },
+    { "buyerCustomerId": "D", "amount": 200.00, "purchasedAt": "2026-03-02T14:30:00Z" },
+    { "buyerCustomerId": "C", "amount": 50.00,  "purchasedAt": "2026-03-03T09:15:00Z" },
+    { "buyerCustomerId": "B", "amount": 300.00, "purchasedAt": "2026-03-04T16:45:00Z" }
   ]
 }
