@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
-import java.time.LocalDateTime
+import java.time.Instant
 import java.util.*
 
 class CalculationServiceTest {
@@ -54,7 +54,7 @@ class CalculationServiceTest {
 
     @Test
     fun `calculate returns cached result when input hash matches`() {
-        val purchase = Purchase(1L, "t1", settlement, "B", BigDecimal("100.0000"), LocalDateTime.now())
+        val purchase = Purchase(1L, "t1", settlement, "B", BigDecimal("100.0000"), Instant.now())
         val existingCalc = Calculation(UUID.randomUUID(), "t1", settlement, "somehash")
         val existingResult = CommissionResult(1L, "t1", settlement, existingCalc, "A", purchase, BigDecimal("1.0000"), 1, "DEPTH_BASED")
 
@@ -76,7 +76,7 @@ class CalculationServiceTest {
 
     @Test
     fun `calculate runs engine when no cached result`() {
-        val purchase = Purchase(1L, "t1", settlement, "B", BigDecimal("100.0000"), LocalDateTime.now())
+        val purchase = Purchase(1L, "t1", settlement, "B", BigDecimal("100.0000"), Instant.now())
         val lineItem = CommissionLineItem("A", 1L, BigDecimal("1.0000"), 1, "DEPTH_BASED")
 
         every { settlementService.findById("t1", 1L) } returns settlement

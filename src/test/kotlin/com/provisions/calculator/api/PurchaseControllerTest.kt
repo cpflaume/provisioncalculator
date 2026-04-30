@@ -20,7 +20,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 import java.math.BigDecimal
-import java.time.LocalDateTime
+import java.time.Instant
 
 @SpringBootTest
 @Import(MockMvcTestConfig::class)
@@ -51,7 +51,7 @@ class PurchaseControllerTest {
     ): Long {
         val request = SubmitPurchasesRequest(
             purchases = listOf(
-                PurchaseRequest(buyerId, amount, LocalDateTime.of(2026, 3, 1, 10, 0))
+                PurchaseRequest(buyerId, amount, Instant.parse("2026-03-01T10:00:00Z"))
             )
         )
         val result = mockMvc.perform(
@@ -63,7 +63,6 @@ class PurchaseControllerTest {
     }
 
     private fun configureAndCalculate(settlementId: Long) {
-        // Minimal config: one rate + tree with root and customer-1
         val configRequest = ConfigureSettingsRequest(
             rates = listOf(CommissionRateRequest(1, BigDecimal("5.0"))),
             tree = listOf(
@@ -84,15 +83,13 @@ class PurchaseControllerTest {
         ).andExpect(status().isOk)
     }
 
-    // ---- submit response includes ids ----
-
     @Test
     fun `submit - response contains ids of created purchases`() {
         val settlementId = createSettlement()
         val request = SubmitPurchasesRequest(
             purchases = listOf(
-                PurchaseRequest("customer-1", BigDecimal("100.00"), LocalDateTime.of(2026, 3, 1, 10, 0)),
-                PurchaseRequest("customer-2", BigDecimal("200.00"), LocalDateTime.of(2026, 3, 2, 10, 0))
+                PurchaseRequest("customer-1", BigDecimal("100.00"), Instant.parse("2026-03-01T10:00:00Z")),
+                PurchaseRequest("customer-2", BigDecimal("200.00"), Instant.parse("2026-03-02T10:00:00Z"))
             )
         )
 
@@ -106,8 +103,6 @@ class PurchaseControllerTest {
             .andExpect(jsonPath("$.ids").isArray)
             .andExpect(jsonPath("$.ids.length()").value(2))
     }
-
-    // ---- delete ----
 
     @Test
     fun `delete - existing purchase returns 204 and removes it from list`() {
@@ -141,7 +136,6 @@ class PurchaseControllerTest {
     @Test
     fun `delete - nonexistent purchase returns 404`() {
         val settlementId = createSettlement()
-
         mockMvc.perform(delete("$baseUrl/settlements/$settlementId/purchases/999999"))
             .andExpect(status().isNotFound)
     }
@@ -170,7 +164,6 @@ class PurchaseControllerTest {
         val settlementId = createSettlement()
         val purchaseId = submitPurchase(settlementId)
 
-        // approve requires CALCULATED status: configure rates+tree, then calculate
         configureAndCalculate(settlementId)
 
         mockMvc.perform(

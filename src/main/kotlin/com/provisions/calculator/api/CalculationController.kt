@@ -6,7 +6,7 @@ import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.web.bind.annotation.*
 import java.math.BigDecimal
-import java.time.LocalDateTime
+import java.time.Instant
 import java.util.*
 
 @RestController
@@ -107,7 +107,7 @@ For each purchase, the engine walks up the referral tree from the buyer and appl
 data class CalculationResponse(
     val calculationId: UUID,
     val settlementId: Long,
-    val calculatedAt: LocalDateTime,
+    val calculatedAt: Instant,
     val fromCache: Boolean,
     val results: List<RecipientTotal>
 )

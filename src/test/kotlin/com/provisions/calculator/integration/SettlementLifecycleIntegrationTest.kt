@@ -15,7 +15,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 import java.math.BigDecimal
-import java.time.LocalDateTime
+import java.time.Instant
 
 @SpringBootTest
 @Import(MockMvcTestConfig::class)
@@ -74,7 +74,7 @@ class SettlementLifecycleIntegrationTest {
         // 3. Submit purchases
         val purchasesRequest = SubmitPurchasesRequest(
             purchases = listOf(
-                PurchaseRequest("D", BigDecimal("200.0000"), LocalDateTime.of(2026, 3, 1, 10, 0))
+                PurchaseRequest("D", BigDecimal("200.0000"), Instant.parse("2026-03-01T10:00:00Z"))
             )
         )
 
@@ -151,7 +151,7 @@ class SettlementLifecycleIntegrationTest {
         )
 
         val purchasesRequest = SubmitPurchasesRequest(
-            purchases = listOf(PurchaseRequest("B", BigDecimal("100.0000"), LocalDateTime.of(2026, 3, 1, 10, 0)))
+            purchases = listOf(PurchaseRequest("B", BigDecimal("100.0000"), Instant.parse("2026-03-01T10:00:00Z")))
         )
         mockMvc.perform(
             post("$baseUrl/settlements/$settlementId/purchases")
@@ -214,7 +214,7 @@ class SettlementLifecycleIntegrationTest {
             post("$baseUrl/settlements/$settlementId/purchases")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(
-                    SubmitPurchasesRequest(listOf(PurchaseRequest("B", BigDecimal("100.0000"), LocalDateTime.of(2026, 3, 1, 10, 0))))
+                    SubmitPurchasesRequest(listOf(PurchaseRequest("B", BigDecimal("100.0000"), Instant.parse("2026-03-01T10:00:00Z"))))
                 ))
         )
 

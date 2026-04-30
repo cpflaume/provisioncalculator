@@ -5,7 +5,7 @@ import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.ObjectNode
 import java.math.BigDecimal
 import java.math.RoundingMode
-import java.time.LocalDateTime
+import java.time.Instant
 
 /**
  * Generates a balanced tree of N nodes and purchases for leaf nodes.
@@ -64,7 +64,7 @@ object TestDataGenerator {
         val leafNodes = (allIds - parentIds).toList().sorted()
 
         val purchases = objectMapper.createArrayNode()
-        val baseTime = LocalDateTime.of(2026, 3, 1, 10, 0)
+        val baseTime = Instant.parse("2026-03-01T10:00:00Z")
 
         for (i in 0 until purchaseCount) {
             val buyerId = leafNodes[i % leafNodes.size]
@@ -72,7 +72,7 @@ object TestDataGenerator {
             val purchase = objectMapper.createObjectNode()
             purchase.put("buyerCustomerId", buyerId)
             purchase.put("amount", amount)
-            purchase.put("purchasedAt", baseTime.plusHours(i.toLong()).toString())
+            purchase.put("purchasedAt", baseTime.plusSeconds(i.toLong() * 3600).toString())
             purchases.add(purchase)
         }
 
