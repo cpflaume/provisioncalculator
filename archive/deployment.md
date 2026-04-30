@@ -64,7 +64,7 @@ GitHub Actions Workflow
 Go to **Settings > Secrets and variables > Actions** and add:
 
 | Secret | Where to find it | Purpose |
-|--------|-----------------|---------|
+|--------|-----------------|----------|
 | `OCI_CLI_TENANCY` | OCI Console > Profile > Tenancy OCID | OCI API auth |
 | `OCI_CLI_USER` | OCI Console > Profile > User OCID | OCI API auth |
 | `OCI_CLI_FINGERPRINT` | OCI Console > Profile > API Keys > Fingerprint | OCI API auth |

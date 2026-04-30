@@ -74,6 +74,6 @@ Use this for Step 3:
 After calculating (Step 4):
 
 | Recipient | Commission | Breakdown |
-|-----------|-----------|-----------|
+|-----------|-----------|----------|
 | Bob | 100.00 | Diana's 1,000 x 10% (depth 1) |
 | Alice | 100.00 | Diana's 1,000 x 5% (depth 2) + Carol's 500 x 10% (depth 1) |
