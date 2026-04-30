@@ -166,8 +166,8 @@ class MetricsEndpointTest {
         configureSmallScenario(base, s2Id)
         // Submit different purchase amounts for settlement 2
         val s2Purchases = """{ "purchases": [
-            { "buyerCustomerId": "E", "amount": 500.00, "purchasedAt": "2026-06-01T10:00:00" },
-            { "buyerCustomerId": "D", "amount": 500.00, "purchasedAt": "2026-06-02T14:30:00" }
+            { "buyerCustomerId": "E", "amount": 500.00, "purchasedAt": "2026-06-01T10:00:00Z" },
+            { "buyerCustomerId": "D", "amount": 500.00, "purchasedAt": "2026-06-02T14:30:00Z" }
         ]}"""
         mockMvc.perform(
             post("$base/settlements/$s2Id/purchases")
@@ -263,7 +263,7 @@ class MetricsEndpointTest {
         ).andExpect(status().isOk)
 
         val extraPurchases = """{ "purchases": [
-            { "buyerCustomerId": "B", "amount": 1000.00, "purchasedAt": "2026-03-10T12:00:00" }
+            { "buyerCustomerId": "B", "amount": 1000.00, "purchasedAt": "2026-03-10T12:00:00Z" }
         ]}"""
         mockMvc.perform(
             post("$base/settlements/$sId/purchases")
