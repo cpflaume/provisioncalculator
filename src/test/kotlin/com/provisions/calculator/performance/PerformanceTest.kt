@@ -17,7 +17,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.io.File
 import java.math.BigDecimal
 import java.math.RoundingMode
-import java.time.LocalDateTime
+import java.time.Instant
 import kotlin.random.Random
 
 @SpringBootTest
@@ -103,7 +103,7 @@ class PerformanceTest {
     private fun generatePurchases(tree: List<TreeNodeRequest>, seed: Long): List<PurchaseRequest> {
         val random = Random(seed)
         val purchases = mutableListOf<PurchaseRequest>()
-        val baseTime = LocalDateTime.of(2026, 3, 1, 10, 0)
+        val baseTime = Instant.parse("2026-03-01T10:00:00Z")
         for (node in tree) {
             val count = random.nextInt(6) // 0 to 5
             repeat(count) {
@@ -112,7 +112,7 @@ class PerformanceTest {
                 purchases.add(PurchaseRequest(
                     buyerCustomerId = node.customerId,
                     amount = amount,
-                    purchasedAt = baseTime.plusMinutes(purchases.size.toLong())
+                    purchasedAt = baseTime.plusSeconds(purchases.size.toLong() * 60)
                 ))
             }
         }

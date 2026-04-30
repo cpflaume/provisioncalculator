@@ -6,7 +6,7 @@ import com.provisions.calculator.model.SettlementStatus
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
-import java.time.LocalDateTime
+import java.time.Instant
 
 class CommissionRuleEngineTest {
 
@@ -18,7 +18,7 @@ class CommissionRuleEngineTest {
         purchases = listOf(
             Purchase(id = 1, tenantId = "tenant1",
                 settlement = Settlement(id = 1, tenantId = "tenant1", name = "Test", status = SettlementStatus.OPEN),
-                buyerCustomerId = "B", amount = BigDecimal("100.0000"), purchasedAt = LocalDateTime.now())
+                buyerCustomerId = "B", amount = BigDecimal("100.0000"), purchasedAt = Instant.now())
         ),
         totalRevenue = BigDecimal("100.0000"),
         nodeCount = 2

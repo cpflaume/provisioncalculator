@@ -8,7 +8,7 @@ import com.provisions.calculator.model.SettlementStatus
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
-import java.time.LocalDateTime
+import java.time.Instant
 
 class DepthBasedCommissionRuleTest {
 
@@ -27,7 +27,7 @@ class DepthBasedCommissionRuleTest {
         settlement = createSettlement(),
         buyerCustomerId = buyerCustomerId,
         amount = amount,
-        purchasedAt = LocalDateTime.now()
+        purchasedAt = Instant.now()
     )
 
     // Tree:  A -> B -> C -> D
