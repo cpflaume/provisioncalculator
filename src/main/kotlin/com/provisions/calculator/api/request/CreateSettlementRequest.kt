@@ -7,6 +7,6 @@ import jakarta.validation.constraints.Size
 data class CreateSettlementRequest(
     @field:NotBlank
     @field:Size(max = 255)
-    @Schema(description = "Name of the settlement period", example = "March 2026")
+    @param:Schema(description = "Name of the settlement period", example = "March 2026")
     val name: String
 )

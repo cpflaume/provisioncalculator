@@ -9,11 +9,11 @@ import java.math.BigDecimal
 
 data class CommissionRateRequest(
     @field:Positive
-    @Schema(description = "Tree depth level (1 = parent, 2 = grandparent, ...)", example = "1")
+    @param:Schema(description = "Tree depth level (1 = parent, 2 = grandparent, ...)", example = "1")
     val depth: Int,
     @field:PositiveOrZero
     @field:Digits(integer = 4, fraction = 4, message = "Rate must have at most 4 integer and 4 fractional digits")
-    @Schema(description = "Commission percentage applied to purchase amount", example = "10.0")
+    @param:Schema(description = "Commission percentage applied to purchase amount", example = "10.0")
     val ratePercent: BigDecimal
 )
 

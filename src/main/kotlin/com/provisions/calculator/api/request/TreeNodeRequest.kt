@@ -5,8 +5,8 @@ import jakarta.validation.constraints.NotBlank
 
 data class TreeNodeRequest(
     @field:NotBlank
-    @Schema(description = "Unique customer identifier in the tree", example = "alice")
+    @param:Schema(description = "Unique customer identifier in the tree", example = "alice")
     val customerId: String,
-    @Schema(description = "Customer ID of the parent node (null for root)", example = "null")
+    @param:Schema(description = "Customer ID of the parent node (null for root)", example = "null")
     val parentCustomerId: String? = null
 )

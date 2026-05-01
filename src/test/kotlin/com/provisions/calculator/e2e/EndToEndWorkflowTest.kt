@@ -102,13 +102,13 @@ class EndToEndWorkflowTest {
             .andReturn()
 
         val calcJson = objectMapper.readTree(calcResult.response.contentAsString)
-        val calculationId = calcJson["calculationId"].asText()
+        val calculationId = calcJson["calculationId"].asString()
 
         // Verify commission totals per recipient
         for (result in calcJson["results"]) {
-            val customerId = result["customerId"].asText()
-            val actual = BigDecimal(result["totalCommission"].asText())
-            val exp = BigDecimal(expectedTotals[customerId].asText())
+            val customerId = result["customerId"].asString()
+            val actual = BigDecimal(result["totalCommission"].asString())
+            val exp = BigDecimal(expectedTotals[customerId].asString())
             assert(actual.compareTo(exp) == 0) {
                 "Commission for $customerId: expected $exp, got $actual"
             }
@@ -297,7 +297,7 @@ class EndToEndWorkflowTest {
         assert(resultCount > 0) { "Expected commission results, got 0" }
 
         // --- Step 5: Idempotency check ---
-        val calcId1 = calcJson["calculationId"].asText()
+        val calcId1 = calcJson["calculationId"].asString()
         val cachedResult = mockMvc.perform(
             post("$base/settlements/$settlementId/calculate")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -306,7 +306,7 @@ class EndToEndWorkflowTest {
             .andExpect(jsonPath("$.fromCache").value(true))
             .andReturn()
 
-        val calcId2 = objectMapper.readTree(cachedResult.response.contentAsString)["calculationId"].asText()
+        val calcId2 = objectMapper.readTree(cachedResult.response.contentAsString)["calculationId"].asString()
         assert(calcId1 == calcId2) { "Idempotency failed: $calcId1 != $calcId2" }
 
         // --- Step 6: Verify settlement status ---

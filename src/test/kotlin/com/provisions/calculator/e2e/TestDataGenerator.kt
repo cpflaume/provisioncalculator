@@ -55,10 +55,10 @@ object TestDataGenerator {
         val allIds = mutableSetOf<String>()
         val parentIds = mutableSetOf<String>()
         for (node in treeNodes) {
-            allIds.add(node["customerId"].asText())
+            allIds.add(node["customerId"].asString())
             val parent = node["parentCustomerId"]
             if (!parent.isNull) {
-                parentIds.add(parent.asText())
+                parentIds.add(parent.asString())
             }
         }
         val leafNodes = (allIds - parentIds).toList().sorted()
