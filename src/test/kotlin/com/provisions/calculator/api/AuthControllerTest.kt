@@ -190,4 +190,84 @@ class AuthControllerTest {
             .andExpect(jsonPath("$.displayName").value("Me User"))
             .andExpect(jsonPath("$.status").value("PENDING"))
     }
+
+    @Test
+    fun `me - response includes authProvider field`() {
+        val registered = authService.register("provider@example.com", "password1234", "Provider User")
+        val principal = AppUserDetails(
+            userId = registered.user.userId,
+            email = "provider@example.com",
+            displayName = "Provider User",
+            hashedPassword = null,
+            role = UserRole.USER,
+            status = UserStatus.PENDING,
+            tenantIds = registered.user.tenantIds,
+            authProvider = "LOCAL",
+        )
+
+        mockMvc.perform(get("/api/auth/me").with(user(principal)))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.authProvider").value("LOCAL"))
+    }
+
+    // ---- demo ----
+
+    @Test
+    fun `demo - returns 201 with ACTIVE USER and DEMO authProvider`() {
+        mockMvc.perform(post("/api/auth/demo").contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.token").isNotEmpty)
+            .andExpect(jsonPath("$.user.authProvider").value("DEMO"))
+            .andExpect(jsonPath("$.user.status").value("ACTIVE"))
+            .andExpect(jsonPath("$.user.role").value("USER"))
+            .andExpect(jsonPath("$.user.displayName").value("Demo"))
+    }
+
+    @Test
+    fun `demo - response contains exactly one tenantId`() {
+        val result = mockMvc.perform(post("/api/auth/demo").contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isCreated)
+            .andReturn()
+
+        val tenantIds = objectMapper.readTree(result.response.contentAsString)["user"]["tenantIds"]
+        assert(tenantIds.size() == 1) { "Expected exactly 1 tenantId, got: $tenantIds" }
+        assert(tenantIds[0].asString().startsWith("demo-")) { "Expected tenantId to start with 'demo-', got: ${tenantIds[0]}" }
+    }
+
+    @Test
+    fun `demo - expiresAt is approximately 24 hours from now`() {
+        val before = java.time.Instant.now()
+        val result = mockMvc.perform(post("/api/auth/demo").contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isCreated)
+            .andReturn()
+
+        val expiresAtStr = objectMapper.readTree(result.response.contentAsString)["user"]["expiresAt"].asText()
+        val expiresAt = java.time.Instant.parse(expiresAtStr)
+        val expectedMin = before.plus(23, java.time.temporal.ChronoUnit.HOURS)
+        val expectedMax = before.plus(25, java.time.temporal.ChronoUnit.HOURS)
+        assert(expiresAt.isAfter(expectedMin) && expiresAt.isBefore(expectedMax)) {
+            "expiresAt $expiresAt not within 23-25h window from $before"
+        }
+    }
+
+    @Test
+    fun `demo - each call creates a distinct user and tenant`() {
+        val result1 = mockMvc.perform(post("/api/auth/demo").contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isCreated).andReturn()
+        val result2 = mockMvc.perform(post("/api/auth/demo").contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isCreated).andReturn()
+
+        val user1 = objectMapper.readTree(result1.response.contentAsString)["user"]
+        val user2 = objectMapper.readTree(result2.response.contentAsString)["user"]
+
+        assert(user1["userId"].asLong() != user2["userId"].asLong()) { "Expected distinct user IDs" }
+        assert(user1["tenantIds"][0].asText() != user2["tenantIds"][0].asText()) { "Expected distinct tenant IDs" }
+        assert(user1["email"].asText() != user2["email"].asText()) { "Expected distinct emails" }
+    }
+
+    @Test
+    fun `demo - unauthenticated access is allowed (no token required)`() {
+        mockMvc.perform(post("/api/auth/demo").contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isCreated)
+    }
 }

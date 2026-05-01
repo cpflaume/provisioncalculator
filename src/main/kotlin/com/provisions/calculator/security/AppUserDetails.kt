@@ -5,6 +5,7 @@ import com.provisions.calculator.model.UserStatus
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.userdetails.UserDetails
+import java.time.Instant
 
 class AppUserDetails(
     val userId: Long,
@@ -13,7 +14,9 @@ class AppUserDetails(
     private val hashedPassword: String?,
     val role: UserRole,
     val status: UserStatus,
-    val tenantIds: Set<String>
+    val tenantIds: Set<String>,
+    val authProvider: String = "LOCAL",
+    val expiresAt: Instant? = null
 ) : UserDetails {
 
     override fun getAuthorities(): Collection<GrantedAuthority> =
@@ -21,7 +24,7 @@ class AppUserDetails(
 
     override fun getPassword(): String? = hashedPassword
     override fun getUsername(): String = email
-    override fun isAccountNonExpired(): Boolean = true
+    override fun isAccountNonExpired(): Boolean = expiresAt?.isAfter(Instant.now()) ?: true
     override fun isAccountNonLocked(): Boolean = status != UserStatus.DISABLED
     override fun isCredentialsNonExpired(): Boolean = true
     override fun isEnabled(): Boolean = status == UserStatus.ACTIVE

@@ -26,7 +26,7 @@ class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val authRateLimitFilter: AuthRateLimitFilter,
     private val objectMapper: JsonMapper,
-    @param:Value("\${app.cors.allowed-origins}") private val allowedOrigins: String
+    @Value("\${app.cors.allowed-origins}") private val allowedOrigins: String
 ) {
 
     @Bean
@@ -66,6 +66,7 @@ class SecurityConfig(
             .authorizeHttpRequests {
                 it.requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
                 it.requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                it.requestMatchers(HttpMethod.POST, "/api/auth/demo").permitAll()
                 it.requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
                 it.requestMatchers("/api/admin/**").hasRole("ADMIN")
                 it.requestMatchers("/api/v1/**").authenticated()

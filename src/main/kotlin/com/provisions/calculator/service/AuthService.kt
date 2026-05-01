@@ -15,6 +15,12 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
+import java.time.Instant
+import java.time.temporal.ChronoUnit
+import java.util.UUID
+
+const val DEMO_AUTH_PROVIDER = "DEMO"
+const val DEMO_USER_TTL_HOURS = 24L
 
 data class AuthUserResponse(
     val userId: Long,
@@ -22,7 +28,9 @@ data class AuthUserResponse(
     val displayName: String,
     val role: UserRole,
     val status: UserStatus,
-    val tenantIds: Set<String>
+    val tenantIds: Set<String>,
+    val authProvider: String,
+    val expiresAt: Instant? = null
 )
 
 data class AuthResponse(
@@ -78,12 +86,41 @@ class AuthService(
         return AuthResponse(token, user.toResponse(tenantIds))
     }
 
+    @Transactional
+    fun loginAsDemo(): AuthResponse {
+        val uuid = UUID.randomUUID().toString()
+        val tenantId = "demo-$uuid"
+        val email = "demo-$uuid@demo.internal"
+        val expiresAt = Instant.now().plus(DEMO_USER_TTL_HOURS, ChronoUnit.HOURS)
+
+        val user = userRepository.save(
+            User(
+                email = email,
+                passwordHash = null,
+                displayName = "Demo",
+                role = UserRole.USER,
+                status = UserStatus.ACTIVE,
+                authProvider = DEMO_AUTH_PROVIDER,
+                expiresAt = expiresAt
+            )
+        )
+
+        val tenant = tenantRepository.save(Tenant(id = tenantId, name = "Demo"))
+        userTenantRepository.save(UserTenant(id = UserTenantId(user.id, tenant.id), user = user, tenant = tenant))
+
+        val tenantIds = setOf(tenant.id)
+        val token = jwtService.generate(user.id, user.email, user.displayName, user.role, user.status, tenantIds)
+        return AuthResponse(token, user.toResponse(tenantIds))
+    }
+
     private fun User.toResponse(tenantIds: Set<String>) = AuthUserResponse(
         userId = id,
         email = email,
         displayName = displayName,
         role = role,
         status = status,
-        tenantIds = tenantIds
+        tenantIds = tenantIds,
+        authProvider = authProvider,
+        expiresAt = expiresAt
     )
 }
