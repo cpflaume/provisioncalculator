@@ -37,5 +37,8 @@ class User(
     val providerId: String? = null,
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    val createdAt: Instant = Instant.now()
+    val createdAt: Instant = Instant.now(),
+
+    @Column(name = "expires_at")
+    val expiresAt: Instant? = null
 )

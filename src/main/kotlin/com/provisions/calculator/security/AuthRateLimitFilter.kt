@@ -23,7 +23,8 @@ class AuthRateLimitFilter(private val objectMapper: JsonMapper) : OncePerRequest
 
     private val limits = mapOf(
         "/api/auth/login" to 10,
-        "/api/auth/register" to 5
+        "/api/auth/register" to 5,
+        "/api/auth/demo" to 5
     )
     private val windowMs = 60_000L
 
