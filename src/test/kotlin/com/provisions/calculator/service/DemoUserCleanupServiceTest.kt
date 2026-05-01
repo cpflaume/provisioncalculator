@@ -64,6 +64,7 @@ class DemoUserCleanupServiceTest {
 
         verify { userRepository.delete(user) }
         verify { entityManager.createNativeQuery("DELETE FROM tenants WHERE id = :tid") }
+        verify { entityManager.createNativeQuery("DELETE FROM user_tenants WHERE user_id = :uid") }
         val expectedTables = listOf(
             "commission_result", "calculation", "purchase", "tree_node",
             "commission_rate", "commission_settings", "settlement"
@@ -85,10 +86,11 @@ class DemoUserCleanupServiceTest {
 
         verify(exactly = 2) { userRepository.delete(any()) }
         verify(exactly = 2) { entityManager.createNativeQuery("DELETE FROM tenants WHERE id = :tid") }
+        verify(exactly = 2) { entityManager.createNativeQuery("DELETE FROM user_tenants WHERE user_id = :uid") }
     }
 
     @Test
-    fun `purge - passes correct tenant_id parameter to native queries`() {
+    fun `purge - passes correct parameters to native queries`() {
         val user = demoUser(1L)
         val tenantId = "demo-specific-tenant"
         every { userRepository.findAllByAuthProviderAndExpiresAtBefore(DEMO_AUTH_PROVIDER, any()) } returns listOf(user)
@@ -98,6 +100,7 @@ class DemoUserCleanupServiceTest {
         service.purgeExpiredDemoAccounts()
 
         verify { nativeQuery.setParameter("tid", tenantId) }
+        verify { nativeQuery.setParameter("uid", user.id) }
     }
 
     @Test

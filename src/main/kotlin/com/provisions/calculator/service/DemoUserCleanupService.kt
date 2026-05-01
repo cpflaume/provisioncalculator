@@ -49,6 +49,9 @@ class DemoUserCleanupService(
                     .setParameter("tid", tenantId)
                     .executeUpdate()
             }
+            entityManager.createNativeQuery("DELETE FROM user_tenants WHERE user_id = :uid")
+                .setParameter("uid", user.id)
+                .executeUpdate()
             userRepository.delete(user)
         }
     }
