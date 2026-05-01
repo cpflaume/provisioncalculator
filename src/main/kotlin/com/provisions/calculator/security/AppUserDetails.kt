@@ -20,7 +20,7 @@ class AppUserDetails(
 ) : UserDetails {
 
     override fun getAuthorities(): Collection<GrantedAuthority> =
-        listOf(SimpleGrantedAuthority("ROLE_${'$'}{role.name}"))
+        listOf(SimpleGrantedAuthority("ROLE_${role.name}"))
 
     override fun getPassword(): String? = hashedPassword
     override fun getUsername(): String = email

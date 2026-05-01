@@ -27,7 +27,7 @@ class JwtAuthenticationFilter(
             val token = header.removePrefix("Bearer ")
             try {
                 val claims = jwtService.parse(token)
-                val userId = claims.get("userId", Int::class.javaObjectType).toLong()
+                val userId = claims.get("userId", Integer::class.java).toLong()
                 val email = claims.subject
                 val displayName = claims.get("displayName", String::class.java) ?: email
                 val role = UserRole.valueOf(claims.get("role", String::class.java))
@@ -35,13 +35,16 @@ class JwtAuthenticationFilter(
                     ?.filterIsInstance<String>()?.toSet() ?: emptySet()
 
                 // Re-check live status from DB to support immediate revocation
-                val currentStatus = userRepository.findById(userId)
-                    .map { it.status }
-                    .orElse(UserStatus.DISABLED)
+                val dbUser = userRepository.findById(userId).orElse(null)
+                val currentStatus = dbUser?.status ?: UserStatus.DISABLED
+                val authProvider = dbUser?.authProvider ?: "LOCAL"
+                val expiresAt = dbUser?.expiresAt
 
-                val userDetails = AppUserDetails(userId, email, displayName, null, role, currentStatus, tenantIds)
+                val userDetails = AppUserDetails(
+                    userId, email, displayName, null, role, currentStatus, tenantIds, authProvider, expiresAt
+                )
 
-                if (!userDetails.isAccountNonLocked()) {
+                if (!userDetails.isAccountNonLocked() || !userDetails.isAccountNonExpired()) {
                     filterChain.doFilter(request, response)
                     return
                 }

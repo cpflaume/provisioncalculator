@@ -40,6 +40,12 @@ class AuthController(private val authService: AuthService) {
         return ResponseEntity.ok(response)
     }
 
+    @PostMapping("/demo")
+    fun demo(): ResponseEntity<AuthResponse> {
+        val response = authService.loginAsDemo()
+        return ResponseEntity.status(HttpStatus.CREATED).body(response)
+    }
+
     @GetMapping("/me")
     fun me(@AuthenticationPrincipal principal: AppUserDetails): ResponseEntity<AuthUserResponse> {
         return ResponseEntity.ok(
@@ -49,7 +55,9 @@ class AuthController(private val authService: AuthService) {
                 displayName = principal.displayName,
                 role = principal.role,
                 status = principal.status,
-                tenantIds = principal.tenantIds
+                tenantIds = principal.tenantIds,
+                authProvider = principal.authProvider,
+                expiresAt = principal.expiresAt
             )
         )
     }
