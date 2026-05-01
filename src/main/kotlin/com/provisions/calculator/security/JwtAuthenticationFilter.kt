@@ -27,7 +27,7 @@ class JwtAuthenticationFilter(
             val token = header.removePrefix("Bearer ")
             try {
                 val claims = jwtService.parse(token)
-                val userId = claims.get("userId", Integer::class.java).toLong()
+                val userId = claims.get("userId", Int::class.javaObjectType).toLong()
                 val email = claims.subject
                 val displayName = claims.get("displayName", String::class.java) ?: email
                 val role = UserRole.valueOf(claims.get("role", String::class.java))

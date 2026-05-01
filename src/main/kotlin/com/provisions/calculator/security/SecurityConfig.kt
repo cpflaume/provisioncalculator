@@ -26,7 +26,7 @@ class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val authRateLimitFilter: AuthRateLimitFilter,
     private val objectMapper: JsonMapper,
-    @Value("\${app.cors.allowed-origins}") private val allowedOrigins: String
+    @param:Value("\${app.cors.allowed-origins}") private val allowedOrigins: String
 ) {
 
     @Bean

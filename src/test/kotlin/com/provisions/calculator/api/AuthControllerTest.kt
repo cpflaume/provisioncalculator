@@ -67,7 +67,7 @@ class AuthControllerTest {
             .andReturn()
 
         val tenantIds = objectMapper.readTree(result.response.contentAsString)["user"]["tenantIds"]
-        assert(tenantIds.any { it.asText() == "test-user" }) {
+        assert(tenantIds.any { it.asString() == "test-user" }) {
             "Expected tenantIds to contain 'test-user', got: $tenantIds"
         }
     }

@@ -98,7 +98,7 @@ class SettlementLifecycleIntegrationTest {
             .andReturn()
 
         val calcJson = objectMapper.readTree(calcResult.response.contentAsString)
-        val calculationId = calcJson["calculationId"].asText()
+        val calculationId = calcJson["calculationId"].asString()
 
         // Verify commissions: D buys 200
         // C at depth 1: 200 * 1% = 2.0000
@@ -227,7 +227,7 @@ class SettlementLifecycleIntegrationTest {
             .andExpect(jsonPath("$.fromCache").value(false))
             .andReturn()
 
-        val calcId1 = objectMapper.readTree(calc1.response.contentAsString)["calculationId"].asText()
+        val calcId1 = objectMapper.readTree(calc1.response.contentAsString)["calculationId"].asString()
 
         // Second calculation (should be cached)
         val calc2 = mockMvc.perform(
@@ -238,7 +238,7 @@ class SettlementLifecycleIntegrationTest {
             .andExpect(jsonPath("$.fromCache").value(true))
             .andReturn()
 
-        val calcId2 = objectMapper.readTree(calc2.response.contentAsString)["calculationId"].asText()
+        val calcId2 = objectMapper.readTree(calc2.response.contentAsString)["calculationId"].asString()
 
         assert(calcId1 == calcId2) { "Expected same calculationId, got $calcId1 vs $calcId2" }
     }

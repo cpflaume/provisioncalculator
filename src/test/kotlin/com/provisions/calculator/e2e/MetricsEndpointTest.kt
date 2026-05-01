@@ -109,7 +109,7 @@ class MetricsEndpointTest {
 
         // Verify cross-check deviation is negative (plausible)
         val metrics = objectMapper.readTree(metricsResult.response.contentAsString)
-        val deviation = BigDecimal(metrics["crossCheck"]["deviationPercent"].asText())
+        val deviation = BigDecimal(metrics["crossCheck"]["deviationPercent"].asString())
         assert(deviation < BigDecimal.ZERO) {
             "Expected negative deviation (actual < theoretical), got $deviation"
         }
@@ -118,7 +118,7 @@ class MetricsEndpointTest {
         val byDepth = metrics["commissions"]["byDepth"]
         val depthAmounts = mutableMapOf<Int, BigDecimal>()
         for (bucket in byDepth) {
-            depthAmounts[bucket["depth"].asInt()] = BigDecimal(bucket["totalAmount"].asText())
+            depthAmounts[bucket["depth"].asInt()] = BigDecimal(bucket["totalAmount"].asString())
         }
         assertBigDecimalEquals(BigDecimal("32.5000"), depthAmounts[1]!!, "Depth 1 commission")
         assertBigDecimalEquals(BigDecimal("10.5000"), depthAmounts[2]!!, "Depth 2 commission")
@@ -192,15 +192,15 @@ class MetricsEndpointTest {
         val overview = objectMapper.readTree(overviewResult.response.contentAsString)
 
         // Total purchase volume: S1(650) + S2(1000) + S3(0) = 1650
-        val totalPurchaseVolume = BigDecimal(overview["totalPurchaseVolume"].asText())
+        val totalPurchaseVolume = BigDecimal(overview["totalPurchaseVolume"].asString())
         assertBigDecimalEquals(BigDecimal("1650.0000"), totalPurchaseVolume, "Total purchase volume")
 
         // Approved purchase volume: only S1(650) is APPROVED
-        val approvedPurchaseVolume = BigDecimal(overview["approvedPurchaseVolume"].asText())
+        val approvedPurchaseVolume = BigDecimal(overview["approvedPurchaseVolume"].asString())
         assertBigDecimalEquals(BigDecimal("650.0000"), approvedPurchaseVolume, "Approved purchase volume")
 
         // Other purchase volume: S2(1000) + S3(0) = 1000
-        val otherPurchaseVolume = BigDecimal(overview["otherPurchaseVolume"].asText())
+        val otherPurchaseVolume = BigDecimal(overview["otherPurchaseVolume"].asString())
         assertBigDecimalEquals(BigDecimal("1000.0000"), otherPurchaseVolume, "Other purchase volume")
 
         // Total commission: S1(44.00) + S2 commission
@@ -209,13 +209,13 @@ class MetricsEndpointTest {
         //   D(500): B gets 25(d1), A gets 15(d2)
         //   S2 total = 25+15+5+25+15 = 85
         // Grand total = 44 + 85 = 129
-        val totalCommission = BigDecimal(overview["totalCommission"].asText())
+        val totalCommission = BigDecimal(overview["totalCommission"].asString())
         assertBigDecimalEquals(BigDecimal("129.0000"), totalCommission, "Total commission")
 
         // Commission rate = 129 / 1650 * 100 = 7.82%
         val expectedRate = BigDecimal("129").multiply(BigDecimal("100"))
             .divide(BigDecimal("1650"), 2, RoundingMode.HALF_UP)
-        val actualRate = BigDecimal(overview["averageCommissionRatePercent"].asText())
+        val actualRate = BigDecimal(overview["averageCommissionRatePercent"].asString())
         assertBigDecimalEquals(expectedRate, actualRate, "Commission rate")
 
         // S3 contributes nothing to totals (no purchases, no calculation)
@@ -255,7 +255,7 @@ class MetricsEndpointTest {
             mockMvc.perform(get("$base/metrics/overview"))
                 .andExpect(status().isOk).andReturn().response.contentAsString
         )
-        val commission1 = BigDecimal(overview1["totalCommission"].asText())
+        val commission1 = BigDecimal(overview1["totalCommission"].asString())
 
         // Reject, add more purchases, recalculate → new calculation row
         mockMvc.perform(
@@ -280,14 +280,14 @@ class MetricsEndpointTest {
             mockMvc.perform(get("$base/metrics/overview"))
                 .andExpect(status().isOk).andReturn().response.contentAsString
         )
-        val commission2 = BigDecimal(overview2["totalCommission"].asText())
+        val commission2 = BigDecimal(overview2["totalCommission"].asString())
 
         assert(commission2 > commission1) {
             "After adding purchases and recalculating, commission should increase: was $commission1, now $commission2"
         }
 
         // Total purchases should now include the extra 1000
-        val totalPurchases = BigDecimal(overview2["totalPurchaseVolume"].asText())
+        val totalPurchases = BigDecimal(overview2["totalPurchaseVolume"].asString())
         assertBigDecimalEquals(BigDecimal("1650.0000"), totalPurchases, "Total after extra purchase")
     }
 
