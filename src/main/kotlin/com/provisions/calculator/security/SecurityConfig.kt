@@ -64,6 +64,7 @@ class SecurityConfig(
                 }
             }
             .authorizeHttpRequests {
+                it.requestMatchers(HttpMethod.GET, "/api/version").permitAll()
                 it.requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
                 it.requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                 it.requestMatchers(HttpMethod.POST, "/api/auth/demo").permitAll()

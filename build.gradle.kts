@@ -15,6 +15,10 @@ java {
     }
 }
 
+springBoot {
+    buildInfo()
+}
+
 repositories {
     mavenCentral()
 }
