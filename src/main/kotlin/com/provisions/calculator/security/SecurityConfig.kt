@@ -71,7 +71,7 @@ class SecurityConfig(
                 it.requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
                 it.requestMatchers("/api/admin/**").hasRole("ADMIN")
                 it.requestMatchers("/api/v1/**").authenticated()
-                it.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-auth").permitAll()
+                it.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui-auth").permitAll()
                 it.anyRequest().denyAll()
             }
             .addFilterBefore(authRateLimitFilter, UsernamePasswordAuthenticationFilter::class.java)
