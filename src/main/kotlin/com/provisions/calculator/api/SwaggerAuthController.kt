@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.ResponseBody
 @Controller
 class SwaggerAuthController {
 
-    @GetMapping("/swagger-ui-auth", produces = [MediaType.TEXT_HTML_VALUE])
+    @GetMapping("/api/swagger-auth", produces = [MediaType.TEXT_HTML_VALUE])
     @ResponseBody
     fun swaggerAuth(): String = """
 <!DOCTYPE html>
