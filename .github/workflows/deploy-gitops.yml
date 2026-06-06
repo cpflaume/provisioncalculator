@@ -1,0 +1,32 @@
+name: Deploy via gitops
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to deploy (e.g. v1.2.0)'
+        required: true
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      - name: Trigger gitops deploy
+        env:
+          GITOPS_DISPATCH_TOKEN: ${{ secrets.GITOPS_DISPATCH_TOKEN }}
+          TAG: ${{ inputs.tag || github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          curl --fail -X POST \
+            -H "Authorization: Bearer ${GITOPS_DISPATCH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/cpflaume/copf-demo-gitops/dispatches \
+            -d "{\"event_type\":\"deploy\",\"client_payload\":{\"service\":\"provisioncalculator-api\",\"environment\":\"production\",\"version\":\"${TAG}\"}}"
