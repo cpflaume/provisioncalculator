@@ -1,14 +1,19 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "schedule": ["on monday"],
-  "platformAutomerge": false,
+  "platformAutomerge": true,
+  "automerge": true,
   "prConcurrentLimit": 5,
   "labels": ["dependencies"],
   "vulnerabilityAlerts": {
     "labels": ["security"]
   },
   "packageRules": [
+    {
+      "description": "Major updates open a PR but wait for manual review/merge — safer than auto-merging breaking changes.",
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    },
     {
       "matchManagers": ["gradle", "gradle-wrapper"],
       "groupName": "Gradle dependencies",
@@ -17,12 +22,7 @@
     {
       "matchManagers": ["github-actions"],
       "groupName": "GitHub Actions",
-      "groupSlug": "github-actions",
-      "automerge": true
-    },
-    {
-      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
-      "automerge": true
+      "groupSlug": "github-actions"
     }
   ]
 }
