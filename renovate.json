@@ -1,8 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "schedule": ["on monday"],
-  "platformAutomerge": false,
+  "platformAutomerge": true,
+  "automerge": true,
   "prConcurrentLimit": 5,
   "labels": ["dependencies"],
   "vulnerabilityAlerts": {
@@ -17,12 +17,7 @@
     {
       "matchManagers": ["github-actions"],
       "groupName": "GitHub Actions",
-      "groupSlug": "github-actions",
-      "automerge": true
-    },
-    {
-      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
-      "automerge": true
+      "groupSlug": "github-actions"
     }
   ]
 }
