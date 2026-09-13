@@ -10,6 +10,11 @@
   },
   "packageRules": [
     {
+      "description": "Major updates open a PR but wait for manual review/merge — safer than auto-merging breaking changes.",
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    },
+    {
       "matchManagers": ["gradle", "gradle-wrapper"],
       "groupName": "Gradle dependencies",
       "groupSlug": "gradle"
