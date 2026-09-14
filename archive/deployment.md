@@ -154,6 +154,38 @@ ssh -i your_key opc@<PUBLIC_IP>
 - **PostgreSQL on same instance** — acceptable for testing, not recommended for production
 - **OCI ARM capacity** — ARM instances are in high demand. If creation fails with "out of capacity", retry later or try a different availability domain
 
+## Backup User & Remote Database Access
+
+The setup script creates a dedicated `backup` PostgreSQL user with read/write
+access to the `provisioncalculator` database (covers future tables via
+`ALTER DEFAULT PRIVILEGES`). Use it for `pg_dump`/`pg_restore` and access from
+another host instead of the app's `provision` user.
+
+**Password:** set the `BACKUP_DB_PASSWORD` GitHub Secret before running the
+*Setup OCI VM* workflow. If unset, the script generates a random password and
+prints it once in the job log.
+
+**Remote access — two options:**
+
+1. **SSH tunnel (default, nothing to open).** PostgreSQL stays bound to
+   `localhost`. From the other server:
+   ```bash
+   ssh -N -L 5432:localhost:5432 opc@<VM_PUBLIC_IP>
+   # then, in another shell:
+   pg_dump -h localhost -p 5432 -U backup provisioncalculator > dump.sql
+   ```
+
+2. **Direct access from a fixed IP.** Run *Setup OCI VM* with the
+   `remote_db_allowed_ip` input (e.g. `203.0.113.10` or `203.0.113.0/24`). The
+   script then sets `listen_addresses = '*'`, adds a scoped `pg_hba.conf` entry
+   for that IP, and opens TCP 5432 in the host firewall for that source only.
+   You must **also** open TCP 5432 from that IP in the OCI VCN Security List.
+   ```bash
+   pg_dump -h <VM_PUBLIC_IP> -p 5432 -U backup provisioncalculator > dump.sql
+   ```
+   Traffic is not encrypted by default over a direct connection — prefer the
+   SSH tunnel, or add TLS to PostgreSQL, for anything sensitive.
+
 ## Useful Commands
 
 ```bash
