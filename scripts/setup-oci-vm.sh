@@ -1,6 +1,19 @@
 #!/bin/bash
 set -euo pipefail
 
+# --- Configurable inputs (all optional) ---
+# BACKUP_DB_PASSWORD    : password for the read/write backup DB user.
+#                         If empty, a random one is generated and printed once.
+# REMOTE_DB_ALLOWED_IP  : IPv4/CIDR that may reach PostgreSQL directly over the
+#                         network (e.g. 203.0.113.10 or 203.0.113.0/24). If empty,
+#                         PostgreSQL stays bound to localhost only and remote access
+#                         is expected via SSH tunnel.
+BACKUP_DB_PASSWORD="${BACKUP_DB_PASSWORD:-}"
+REMOTE_DB_ALLOWED_IP="${REMOTE_DB_ALLOWED_IP:-}"
+
+PG_HBA="/var/lib/pgsql/data/pg_hba.conf"
+PG_CONF="/var/lib/pgsql/data/postgresql.conf"
+
 echo "=== Provision Calculator - OCI VM Setup ==="
 echo ""
 
@@ -25,10 +38,56 @@ sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='provision'" | g
 sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='provisioncalculator'" | grep -q 1 \
     || sudo -u postgres psql -c "CREATE DATABASE provisioncalculator OWNER provision;"
 
+# --- Backup user (read/write) ---
+# Used for pg_dump/pg_restore and ad-hoc access from another host.
+if [ -z "$BACKUP_DB_PASSWORD" ]; then
+    BACKUP_DB_PASSWORD="$(openssl rand -base64 24 | tr -d '/+=')"
+    GENERATED_BACKUP_PW=1
+fi
+sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='backup'" | grep -q 1 \
+    && sudo -u postgres psql -c "ALTER USER backup WITH PASSWORD '${BACKUP_DB_PASSWORD}';" \
+    || sudo -u postgres psql -c "CREATE USER backup WITH PASSWORD '${BACKUP_DB_PASSWORD}';"
+
+# Grant read/write on the app database. Tables are owned by 'provision' and created
+# later by Flyway, so ALTER DEFAULT PRIVILEGES FOR ROLE provision covers future tables too.
+sudo -u postgres psql -d provisioncalculator <<SQL
+GRANT CONNECT ON DATABASE provisioncalculator TO backup;
+GRANT USAGE ON SCHEMA public TO backup;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO backup;
+GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO backup;
+ALTER DEFAULT PRIVILEGES FOR ROLE provision IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO backup;
+ALTER DEFAULT PRIVILEGES FOR ROLE provision IN SCHEMA public GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO backup;
+SQL
+
 # Switch from ident to md5 authentication for local connections
-sudo sed -i 's/ident$/md5/' /var/lib/pgsql/data/pg_hba.conf
+sudo sed -i 's/ident$/md5/' "$PG_HBA"
+
+# --- Optional: allow direct network access from a trusted host ---
+# When REMOTE_DB_ALLOWED_IP is set, PostgreSQL listens on all interfaces and accepts
+# md5 connections to the app database from that IP/CIDR only. Otherwise it stays on
+# localhost and remote access should go through an SSH tunnel (no config needed).
+if [ -n "$REMOTE_DB_ALLOWED_IP" ]; then
+    echo "Enabling direct network access from ${REMOTE_DB_ALLOWED_IP}..."
+    if ! sudo grep -qE "^\s*listen_addresses\s*=\s*'\*'" "$PG_CONF"; then
+        echo "listen_addresses = '*'" | sudo tee -a "$PG_CONF" > /dev/null
+    fi
+    HBA_LINE="host    provisioncalculator    all    ${REMOTE_DB_ALLOWED_IP}    md5"
+    sudo grep -qF "$HBA_LINE" "$PG_HBA" || echo "$HBA_LINE" | sudo tee -a "$PG_HBA" > /dev/null
+    sudo firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=${REMOTE_DB_ALLOWED_IP} port port=5432 protocol=tcp accept"
+    sudo firewall-cmd --reload
+    echo "NOTE: also open TCP 5432 from ${REMOTE_DB_ALLOWED_IP} in the OCI VCN Security List."
+else
+    echo "PostgreSQL stays on localhost. For remote access use an SSH tunnel, e.g.:"
+    echo "  ssh -N -L 5432:localhost:5432 opc@<VM_PUBLIC_IP>"
+fi
+
 sudo systemctl restart postgresql
 echo "PostgreSQL ready."
+if [ "${GENERATED_BACKUP_PW:-0}" = "1" ]; then
+    echo ""
+    echo "  >>> Generated backup user password (store it now, not shown again):"
+    echo "  >>> backup / ${BACKUP_DB_PASSWORD}"
+fi
 echo ""
 
 # --- Firewall ---
@@ -130,6 +189,7 @@ echo ""
 echo "Verify with:"
 echo "  java -version"
 echo "  sudo -u postgres psql -d provisioncalculator -c 'SELECT 1;'"
+echo "  sudo -u postgres psql -c '\\du backup'"
 echo "  sudo systemctl status provisioncalculator"
 echo "  sudo systemctl status caddy"
 echo "  curl -s https://provisioncalculator.copf-demo.de/"
