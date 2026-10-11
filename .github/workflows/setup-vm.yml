@@ -2,6 +2,11 @@ name: Setup OCI VM
 
 on:
   workflow_dispatch:
+    inputs:
+      remote_db_allowed_ip:
+        description: 'Optional IPv4/CIDR allowed to reach PostgreSQL directly (leave empty for SSH-tunnel-only access)'
+        required: false
+        default: ''
 
 jobs:
   setup:
@@ -15,6 +20,8 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.ORACLE_VM_SSH_KEY }}
           HOST: ${{ secrets.OCI_HOST }}
+          BACKUP_DB_PASSWORD: ${{ secrets.BACKUP_DB_PASSWORD }}
+          REMOTE_DB_ALLOWED_IP: ${{ inputs.remote_db_allowed_ip }}
         run: |
           echo "$SSH_KEY" > deploy_key.pem
           chmod 600 deploy_key.pem
@@ -22,7 +29,7 @@ jobs:
 
           scp $SSH_OPTS scripts/setup-oci-vm.sh opc@$HOST:/tmp/setup-oci-vm.sh
 
-          ssh $SSH_OPTS opc@$HOST "chmod +x /tmp/setup-oci-vm.sh && /tmp/setup-oci-vm.sh"
+          ssh $SSH_OPTS opc@$HOST "chmod +x /tmp/setup-oci-vm.sh && BACKUP_DB_PASSWORD='${BACKUP_DB_PASSWORD}' REMOTE_DB_ALLOWED_IP='${REMOTE_DB_ALLOWED_IP}' /tmp/setup-oci-vm.sh"
 
           echo "--- Verification ---"
           ssh $SSH_OPTS opc@$HOST "java -version && sudo -u postgres psql -d provisioncalculator -c 'SELECT 1;' && systemctl is-active caddy"
